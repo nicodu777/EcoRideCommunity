@@ -469,6 +469,8 @@ export default function Dashboard() {
           <TabsContent value="profile" className="space-y-6">
             <div className="max-w-2xl">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Mon profil</h2>
+              {/* Debug info */}
+              {console.log('Profile tab rendering, user:', user, 'profile:', user?.profile)}
               
               <Card>
                 <CardHeader>
