@@ -134,9 +134,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(tomorrow.getTime() + 12 * 60 * 60 * 1000), // 12h tomorrow
         availableSeats: 3,
         totalSeats: 4,
-        pricePerSeat: 25,
+        pricePerSeat: "25",
         description: "Trajet confortable avec pause déjeuner à Mâcon. Véhicule récent et climatisé.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       },
       {
@@ -148,9 +148,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(dayAfter.getTime() + 18 * 60 * 60 * 1000), // 18h day after  
         availableSeats: 2,
         totalSeats: 3,
-        pricePerSeat: 30,
+        pricePerSeat: "30",
         description: "Départ depuis Gare de Lyon. Conduite souple, musique au choix des passagers.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       },
       // Lyon-Paris trips
@@ -163,9 +163,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(tomorrow.getTime() + 20 * 60 * 60 * 1000), // 20h tomorrow
         availableSeats: 1,
         totalSeats: 4, 
-        pricePerSeat: 28,
+        pricePerSeat: "28",
         description: "Trajet direct sans arrêt. Départ de Lyon Part-Dieu, arrivée Porte d'Italie.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       },
       // Paris-Marseille trips
@@ -178,9 +178,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(nextWeek.getTime() + 15 * 60 * 60 * 1000), // 15h next week
         availableSeats: 2,
         totalSeats: 4,
-        pricePerSeat: 45,
+        pricePerSeat: "45",
         description: "Trajet avec pause déjeuner à Avignon. Vue sur la mer à l'arrivée !",
-        status: "active", 
+        isActive: true, 
         createdAt: now,
       },
       // Toulouse-Paris trips
@@ -193,9 +193,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(dayAfter.getTime() + 14 * 60 * 60 * 1000), // 14h day after
         availableSeats: 3,
         totalSeats: 4,
-        pricePerSeat: 35,
+        pricePerSeat: "35",
         description: "Trajet matinal avec petit-déjeuner offert. Wifi gratuit dans le véhicule.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       },
       // Bordeaux-Lyon trips  
@@ -208,9 +208,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(tomorrow.getTime() + 15 * 60 * 60 * 1000), // 15h tomorrow
         availableSeats: 4,
         totalSeats: 4,
-        pricePerSeat: 40,
+        pricePerSeat: "40",
         description: "Premier trajet ! Véhicule spacieux, arrêt prévu à Limoges.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       },
       // Nice-Paris trips
@@ -223,9 +223,9 @@ export class MemStorage implements IStorage {
         arrivalTime: new Date(nextWeek.getTime() + 19 * 60 * 60 * 1000), // 19h next week
         availableSeats: 1,
         totalSeats: 3,
-        pricePerSeat: 50,
+        pricePerSeat: "50",
         description: "Trajet panoramique le long de la côte puis autoroutes. Très bon conducteur.",
-        status: "active",
+        isActive: true,
         createdAt: now,
       }
     ];
