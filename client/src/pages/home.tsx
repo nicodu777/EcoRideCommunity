@@ -107,6 +107,10 @@ export default function Home() {
         driverId: user.profile.id,
       });
 
+      // Invalidate the trips cache to refresh the list
+      const { queryClient } = await import("@/lib/queryClient");
+      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+
       toast({
         title: "Trajet publié",
         description: "Votre trajet a été publié avec succès.",
@@ -158,26 +162,69 @@ export default function Home() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search Section */}
-        <section className="mb-12">
-          <SearchForm onSearch={handleSearch} />
-          
-          {/* Quick Stats */}
-          <div className="mt-6 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-eco-green">2,847</div>
-              <div className="text-sm text-slate-600">Trajets disponibles</div>
+        {/* Search Section for Passengers */}
+        {activeRole === 'passenger' && (
+          <section className="mb-12">
+            <SearchForm onSearch={handleSearch} />
+            
+            {/* Quick Stats */}
+            <div className="mt-6 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-eco-green">2,847</div>
+                <div className="text-sm text-slate-600">Trajets disponibles</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-eco-blue">15.2T</div>
+                <div className="text-sm text-slate-600">CO₂ économisé</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-eco-trust">12,496</div>
+                <div className="text-sm text-slate-600">Utilisateurs actifs</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-eco-blue">15.2T</div>
-              <div className="text-sm text-slate-600">CO₂ économisé</div>
+          </section>
+        )}
+
+        {/* Publish Section for Drivers */}
+        {activeRole === 'driver' && (
+          <section className="mb-12">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
+              <div className="max-w-md mx-auto">
+                <div className="w-20 h-20 bg-eco-green bg-opacity-10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Car size={40} className="text-eco-green" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900 mb-4">
+                  Proposez votre trajet
+                </h2>
+                <p className="text-slate-600 mb-6">
+                  Partagez vos frais de transport et aidez d'autres voyageurs en proposant vos trajets disponibles.
+                </p>
+                {user ? (
+                  <Button 
+                    size="lg"
+                    className="bg-eco-green hover:bg-green-600 text-white px-8 py-3"
+                    onClick={() => setShowPublishModal(true)}
+                  >
+                    <Plus className="mr-2" size={20} />
+                    Publier un trajet
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-slate-500 text-sm">Connectez-vous pour publier un trajet</p>
+                    <div className="flex space-x-3 justify-center">
+                      <Link href="/login">
+                        <Button variant="outline">Se connecter</Button>
+                      </Link>
+                      <Link href="/register">
+                        <Button className="bg-eco-green hover:bg-green-600">S'inscrire</Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-eco-trust">12,496</div>
-              <div className="text-sm text-slate-600">Utilisateurs actifs</div>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* Popular Routes Section */}
         <section className="mb-12">
