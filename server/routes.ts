@@ -154,6 +154,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.post("/api/bookings", async (req, res) => {
     try {
+      // Convert totalPrice to string if it's a number
+      if (req.body.totalPrice && typeof req.body.totalPrice === 'number') {
+        req.body.totalPrice = req.body.totalPrice.toString();
+      }
+      
       const bookingData = insertBookingSchema.parse(req.body);
       
       // Check if trip exists and has available seats

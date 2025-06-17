@@ -46,7 +46,7 @@ export default function Dashboard() {
   });
 
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<BookingWithTrip[]>({
-    queryKey: ['/api/bookings/passenger', user?.profile?.id],
+    queryKey: [`/api/bookings/passenger/${user?.profile?.id}`],
     enabled: !!user?.profile?.id,
   });
 
@@ -62,6 +62,7 @@ export default function Dashboard() {
 
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
       toast({

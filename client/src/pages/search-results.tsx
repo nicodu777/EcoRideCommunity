@@ -94,9 +94,14 @@ export default function SearchResults() {
         tripId,
         passengerId: user.profile.id,
         seatsBooked,
-        totalPrice,
-        message: message || undefined,
+        totalPrice: totalPrice.toString(),
+        message: message || null,
       });
+
+      // Invalidate queries to refresh the data
+      const { queryClient } = await import("@/lib/queryClient");
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
       toast({
         title: "Réservation confirmée",

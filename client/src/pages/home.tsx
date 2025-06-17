@@ -74,9 +74,14 @@ export default function Home() {
         tripId,
         passengerId: user.profile.id,
         seatsBooked,
-        totalPrice,
-        message: message || undefined,
+        totalPrice: totalPrice.toString(),
+        message: message || null,
       });
+
+      // Invalidate queries to refresh the data
+      const { queryClient } = await import("@/lib/queryClient");
+      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
 
       toast({
         title: "Réservation confirmée",
@@ -110,6 +115,7 @@ export default function Home() {
       // Invalidate the trips cache to refresh the list
       const { queryClient } = await import("@/lib/queryClient");
       queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
 
       toast({
         title: "Trajet publié",
