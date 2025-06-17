@@ -29,15 +29,14 @@ export function MobileNav() {
           </div>
         </Link>
         
-        <button 
-          onClick={() => window.location.href = '/dashboard?tab=publish'}
-          className={`flex flex-col items-center py-2 ${
+        <Link href="/dashboard?tab=publish">
+          <div className={`flex flex-col items-center py-2 ${
             location.includes('publish') ? 'text-eco-green' : 'text-slate-400'
-          }`}
-        >
-          <Plus className="mb-1" size={20} />
-          <span className="text-xs">Publier</span>
-        </button>
+          }`}>
+            <Plus className="mb-1" size={20} />
+            <span className="text-xs">Publier</span>
+          </div>
+        </Link>
         
         <Link href="/dashboard">
           <div className={`flex flex-col items-center py-2 ${
@@ -48,15 +47,14 @@ export function MobileNav() {
           </div>
         </Link>
         
-        <button 
-          onClick={() => window.location.href = '/dashboard?tab=profile'}
-          className={`flex flex-col items-center py-2 ${
+        <Link href="/dashboard?tab=profile">
+          <div className={`flex flex-col items-center py-2 ${
             location.includes('profile') ? 'text-eco-green' : 'text-slate-400'
-          }`}
-        >
-          <User className="mb-1" size={20} />
-          <span className="text-xs">Profil</span>
-        </button>
+          }`}>
+            <User className="mb-1" size={20} />
+            <span className="text-xs">Profil</span>
+          </div>
+        </Link>
       </div>
     </nav>
   );

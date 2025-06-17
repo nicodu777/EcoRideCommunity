@@ -73,14 +73,27 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) {
+        handleClose();
+      }
+    }}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold text-slate-900">
               Publier un trajet
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={handleClose}>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleClose();
+              }}
+              type="button"
+            >
               <X size={20} />
             </Button>
           </div>
