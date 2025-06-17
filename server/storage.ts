@@ -50,6 +50,190 @@ export class MemStorage implements IStorage {
     this.currentTripId = 1;
     this.currentBookingId = 1;
     this.currentRatingId = 1;
+    
+    // Initialize with sample data
+    this.initializeSampleData();
+  }
+
+  private initializeSampleData() {
+    // Create sample drivers
+    const drivers = [
+      {
+        id: this.currentUserId++,
+        firebaseUid: "driver1",
+        email: "marie.dubois@email.com",
+        firstName: "Marie",
+        lastName: "Dubois",
+        phone: "06 12 34 56 78",
+        role: "driver",
+        averageRating: "4.8",
+        totalRatings: 24,
+        isVerified: true,
+        createdAt: new Date(),
+      },
+      {
+        id: this.currentUserId++,
+        firebaseUid: "driver2", 
+        email: "pierre.martin@email.com",
+        firstName: "Pierre",
+        lastName: "Martin",
+        phone: "06 23 45 67 89",
+        role: "driver",
+        averageRating: "4.6",
+        totalRatings: 18,
+        isVerified: true,
+        createdAt: new Date(),
+      },
+      {
+        id: this.currentUserId++,
+        firebaseUid: "driver3",
+        email: "sophie.bernard@email.com", 
+        firstName: "Sophie",
+        lastName: "Bernard",
+        phone: "06 34 56 78 90",
+        role: "driver",
+        averageRating: "4.9",
+        totalRatings: 31,
+        isVerified: true,
+        createdAt: new Date(),
+      },
+      {
+        id: this.currentUserId++,
+        firebaseUid: "driver4",
+        email: "julien.petit@email.com",
+        firstName: "Julien", 
+        lastName: "Petit",
+        phone: "06 45 67 89 01",
+        role: "driver",
+        averageRating: "4.7",
+        totalRatings: 15,
+        isVerified: true,
+        createdAt: new Date(),
+      }
+    ];
+
+    // Add drivers to storage
+    drivers.forEach(driver => {
+      this.users.set(driver.id, driver);
+    });
+
+    // Create sample trips
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const dayAfter = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const sampleTrips = [
+      // Paris-Lyon trips
+      {
+        id: this.currentTripId++,
+        driverId: drivers[0].id,
+        departure: "Paris",
+        destination: "Lyon", 
+        departureTime: new Date(tomorrow.getTime() + 8 * 60 * 60 * 1000), // 8h tomorrow
+        arrivalTime: new Date(tomorrow.getTime() + 12 * 60 * 60 * 1000), // 12h tomorrow
+        availableSeats: 3,
+        totalSeats: 4,
+        pricePerSeat: 25,
+        description: "Trajet confortable avec pause déjeuner à Mâcon. Véhicule récent et climatisé.",
+        status: "active",
+        createdAt: now,
+      },
+      {
+        id: this.currentTripId++,
+        driverId: drivers[1].id,
+        departure: "Paris",
+        destination: "Lyon",
+        departureTime: new Date(dayAfter.getTime() + 14 * 60 * 60 * 1000), // 14h day after
+        arrivalTime: new Date(dayAfter.getTime() + 18 * 60 * 60 * 1000), // 18h day after  
+        availableSeats: 2,
+        totalSeats: 3,
+        pricePerSeat: 30,
+        description: "Départ depuis Gare de Lyon. Conduite souple, musique au choix des passagers.",
+        status: "active",
+        createdAt: now,
+      },
+      // Lyon-Paris trips
+      {
+        id: this.currentTripId++,
+        driverId: drivers[2].id,
+        departure: "Lyon",
+        destination: "Paris",
+        departureTime: new Date(tomorrow.getTime() + 16 * 60 * 60 * 1000), // 16h tomorrow
+        arrivalTime: new Date(tomorrow.getTime() + 20 * 60 * 60 * 1000), // 20h tomorrow
+        availableSeats: 1,
+        totalSeats: 4, 
+        pricePerSeat: 28,
+        description: "Trajet direct sans arrêt. Départ de Lyon Part-Dieu, arrivée Porte d'Italie.",
+        status: "active",
+        createdAt: now,
+      },
+      // Paris-Marseille trips
+      {
+        id: this.currentTripId++,
+        driverId: drivers[0].id,
+        departure: "Paris", 
+        destination: "Marseille",
+        departureTime: new Date(nextWeek.getTime() + 6 * 60 * 60 * 1000), // 6h next week
+        arrivalTime: new Date(nextWeek.getTime() + 15 * 60 * 60 * 1000), // 15h next week
+        availableSeats: 2,
+        totalSeats: 4,
+        pricePerSeat: 45,
+        description: "Trajet avec pause déjeuner à Avignon. Vue sur la mer à l'arrivée !",
+        status: "active", 
+        createdAt: now,
+      },
+      // Toulouse-Paris trips
+      {
+        id: this.currentTripId++,
+        driverId: drivers[3].id,
+        departure: "Toulouse",
+        destination: "Paris",
+        departureTime: new Date(dayAfter.getTime() + 7 * 60 * 60 * 1000), // 7h day after
+        arrivalTime: new Date(dayAfter.getTime() + 14 * 60 * 60 * 1000), // 14h day after
+        availableSeats: 3,
+        totalSeats: 4,
+        pricePerSeat: 35,
+        description: "Trajet matinal avec petit-déjeuner offert. Wifi gratuit dans le véhicule.",
+        status: "active",
+        createdAt: now,
+      },
+      // Bordeaux-Lyon trips  
+      {
+        id: this.currentTripId++,
+        driverId: drivers[1].id,
+        departure: "Bordeaux",
+        destination: "Lyon", 
+        departureTime: new Date(tomorrow.getTime() + 9 * 60 * 60 * 1000), // 9h tomorrow
+        arrivalTime: new Date(tomorrow.getTime() + 15 * 60 * 60 * 1000), // 15h tomorrow
+        availableSeats: 4,
+        totalSeats: 4,
+        pricePerSeat: 40,
+        description: "Premier trajet ! Véhicule spacieux, arrêt prévu à Limoges.",
+        status: "active",
+        createdAt: now,
+      },
+      // Nice-Paris trips
+      {
+        id: this.currentTripId++,
+        driverId: drivers[2].id,
+        departure: "Nice",
+        destination: "Paris",
+        departureTime: new Date(nextWeek.getTime() + 10 * 60 * 60 * 1000), // 10h next week  
+        arrivalTime: new Date(nextWeek.getTime() + 19 * 60 * 60 * 1000), // 19h next week
+        availableSeats: 1,
+        totalSeats: 3,
+        pricePerSeat: 50,
+        description: "Trajet panoramique le long de la côte puis autoroutes. Très bon conducteur.",
+        status: "active",
+        createdAt: now,
+      }
+    ];
+
+    // Add trips to storage
+    sampleTrips.forEach(trip => {
+      this.trips.set(trip.id, trip);
+    });
   }
 
   // User operations
