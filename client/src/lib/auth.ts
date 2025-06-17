@@ -73,9 +73,21 @@ export class AuthService {
 
       this.notifyListeners();
       return this.currentUser;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
-      throw error;
+      
+      // Provide user-friendly error messages
+      if (error.code === "auth/configuration-not-found") {
+        throw new Error("Le service d'authentification n'est pas correctement configuré. Veuillez contacter l'administrateur.");
+      } else if (error.code === "auth/email-already-in-use") {
+        throw new Error("Cette adresse email est déjà utilisée.");
+      } else if (error.code === "auth/weak-password") {
+        throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
+      } else if (error.code === "auth/invalid-email") {
+        throw new Error("Adresse email invalide.");
+      } else {
+        throw new Error(`Erreur d'inscription: ${error.message || "Une erreur inattendue s'est produite"}`);
+      }
     }
   }
 
