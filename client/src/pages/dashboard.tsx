@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Car, Calendar, User, Star } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -31,6 +31,7 @@ export default function Dashboard() {
 
   const { data: myTrips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
     queryKey: ['/api/trips/driver', user?.profile?.id],
+    queryFn: () => fetch(`/api/trips/driver/${user?.profile?.id}`).then(res => res.json()),
     enabled: !!user?.profile?.id,
   });
 
@@ -48,6 +49,10 @@ export default function Dashboard() {
         ...tripData,
         driverId: user.profile.id,
       });
+
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/driver', user.profile.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
       toast({
         title: "Trajet publié",
@@ -140,7 +145,7 @@ export default function Dashboard() {
             <CardContent className="p-6 text-center">
               <Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-slate-900">
-                {user.profile ? parseFloat(user.profile.averageRating).toFixed(1) : '0.0'}
+                {user.profile && user.profile.averageRating ? parseFloat(user.profile.averageRating).toFixed(1) : '0.0'}
               </div>
               <div className="text-sm text-slate-600">Note moyenne</div>
             </CardContent>
@@ -308,7 +313,7 @@ export default function Dashboard() {
                           <div className="flex items-center space-x-1">
                             <Star className="text-yellow-400" size={14} />
                             <span className="text-sm text-slate-600">
-                              {parseFloat(booking.trip.driver.averageRating).toFixed(1)}
+                              {booking.trip.driver.averageRating && booking.trip.driver.averageRating !== null ? parseFloat(booking.trip.driver.averageRating).toFixed(1) : '0.0'}
                             </span>
                           </div>
                         </div>
