@@ -98,6 +98,22 @@ export function Navbar() {
                       Mon tableau de bord
                     </Link>
                   </DropdownMenuItem>
+                  {user.profile?.role === 'employee' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/employee" className="flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Espace employé
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {user.profile?.role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Administration
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Se déconnecter
