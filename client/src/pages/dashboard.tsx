@@ -301,14 +301,14 @@ export default function Dashboard() {
                         <span className="text-sm text-slate-600">
                           {trip.availableSeats} / {trip.totalSeats} places libres
                         </span>
-                        <Badge className={getStatusBadgeColor(trip.status || 'pending')}>
-                          {getStatusText(trip.status || 'pending')}
+                        <Badge className={getStatusBadgeColor((trip as any).status || 'pending')}>
+                          {getStatusText((trip as any).status || 'pending')}
                         </Badge>
                       </div>
                       
                       {/* Trip Management Buttons */}
                       <div className="flex gap-2">
-                        {trip.status === 'pending' && (
+                        {((trip as any).status === 'pending' || !(trip as any).status) && (
                           <Button
                             size="sm"
                             onClick={() => handleStartTrip(trip.id)}
@@ -317,7 +317,7 @@ export default function Dashboard() {
                             Démarrer
                           </Button>
                         )}
-                        {trip.status === 'started' && (
+                        {(trip as any).status === 'started' && (
                           <Button
                             size="sm"
                             onClick={() => handleCompleteTrip(trip.id)}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                             Arrivée à destination
                           </Button>
                         )}
-                        {trip.status === 'completed' && (
+                        {(trip as any).status === 'completed' && (
                           <Badge className="flex-1 text-center bg-gray-100 text-gray-800">
                             Trajet terminé
                           </Badge>
