@@ -97,8 +97,75 @@ export default function Dashboard() {
         return 'Annulé';
       case 'completed':
         return 'Terminé';
+      case 'started':
+        return 'En cours';
       default:
         return status;
+    }
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'started':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleStartTrip = async (tripId: number) => {
+    if (!user?.profile) return;
+
+    try {
+      await apiRequest("PUT", `/api/trips/${tripId}/start`, {
+        driverId: user.profile.id,
+      });
+
+      toast({
+        title: "Trajet démarré",
+        description: "Votre trajet a été démarré avec succès. Bon voyage !",
+      });
+
+      // Refresh trips data
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/driver', user.profile.id] });
+    } catch (error) {
+      console.error("Error starting trip:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de démarrer le trajet. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCompleteTrip = async (tripId: number) => {
+    if (!user?.profile) return;
+
+    try {
+      await apiRequest("PUT", `/api/trips/${tripId}/complete`, {
+        driverId: user.profile.id,
+      });
+
+      toast({
+        title: "Trajet terminé",
+        description: "Votre trajet a été marqué comme terminé. Les crédits ont été ajoutés à votre compte.",
+      });
+
+      // Refresh trips data
+      queryClient.invalidateQueries({ queryKey: ['/api/trips/driver', user.profile.id] });
+    } catch (error) {
+      console.error("Error completing trip:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de terminer le trajet. Veuillez réessayer.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -230,13 +297,40 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-3">
                         <span className="text-sm text-slate-600">
                           {trip.availableSeats} / {trip.totalSeats} places libres
                         </span>
-                        <Badge className={trip.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
-                          {trip.isActive ? "Actif" : "Inactif"}
+                        <Badge className={getStatusBadgeColor(trip.status || 'pending')}>
+                          {getStatusText(trip.status || 'pending')}
                         </Badge>
+                      </div>
+                      
+                      {/* Trip Management Buttons */}
+                      <div className="flex gap-2">
+                        {trip.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleStartTrip(trip.id)}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
+                            Démarrer
+                          </Button>
+                        )}
+                        {trip.status === 'started' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleCompleteTrip(trip.id)}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          >
+                            Arrivée à destination
+                          </Button>
+                        )}
+                        {trip.status === 'completed' && (
+                          <Badge className="flex-1 text-center bg-gray-100 text-gray-800">
+                            Trajet terminé
+                          </Badge>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
