@@ -94,11 +94,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/trips", async (req, res) => {
     try {
-      // Convert date strings to Date objects
+      // Convert date strings to Date objects and price to string
       const requestData = {
         ...req.body,
         departureTime: new Date(req.body.departureTime),
         arrivalTime: new Date(req.body.arrivalTime),
+        pricePerSeat: String(req.body.pricePerSeat),
       };
       
       const tripData = insertTripSchema.parse(requestData);
