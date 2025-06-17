@@ -1,0 +1,82 @@
+Je souhaite développer une application web de covoiturage écoresponsable appelée EcoRide.
+Elle permet aux conducteurs de publier des trajets, et aux passagers de rechercher et réserver des trajets disponibles.
+Le projet sera codé en HTML, CSS et JavaScript pour le front-end, avec Node.js + Express pour le back-end.
+Je veux utiliser Firebase (Realtime Database ou Firestore + Authentication) pour stocker les données utilisateurs, les trajets et les réservations.
+Aide-moi à construire ce projet étape par étape avec du code clair, organisé et documenté.
+
+✅ Fonctionnalités à inclure :
+Authentification (avec Firebase Auth) :
+Inscription (email + mot de passe)
+
+Connexion / déconnexion
+
+Gestion des rôles (conducteur / passager)
+
+Utilisateur Conducteur :
+Publier un trajet : départ, destination, date, heure, nombre de places
+
+Voir ses trajets publiés
+
+Modifier ou supprimer un trajet
+
+Voir les réservations reçues
+
+Utilisateur Passager :
+Rechercher un trajet (filtre par ville, date, heure)
+
+Réserver une place
+
+Voir ses réservations
+
+Noter un conducteur après un trajet
+
+Système de notation :
+Chaque trajet terminé peut être noté
+
+Le profil d’un conducteur affiche sa note moyenne
+
+📁 Structure du projet souhaitée :
+pgsql
+Copier
+Modifier
+/EcoRide
+│
+├── public/
+│   ├── index.html           → page d’accueil
+│   ├── login.html           → connexion
+│   ├── register.html        → inscription
+│   ├── dashboard.html       → tableau de bord conducteur/passager
+│   ├── add-ride.html        → publier un trajet
+│   ├── search.html          → rechercher un trajet
+│   ├── ride.html            → détails d’un trajet
+│   └── style.css            → styles globaux
+│
+├── firebase/
+│   └── firebase-config.js   → config Firebase (clé API, etc.)
+│
+├── server.js                → serveur Node.js avec Express
+├── package.json             → dépendances
+🧠 Ce que je veux que tu fasses :
+Génère les fichiers de base (HTML, JS, CSS).
+
+Configure Firebase Auth (inscription / connexion).
+
+Connecte Firebase Firestore ou Realtime Database.
+
+Crée les modèles de données suivants :
+
+Utilisateurs (email, rôle, nom)
+
+Trajets (conducteur, départ, destination, date, heure, places)
+
+Réservations (passager, trajetID)
+
+Notes (conducteurID, note, commentaire)
+
+Propose une structure de code claire avec des commentaires en français.
+
+Génère des exemples de requêtes pour publier, rechercher et réserver un trajet.
+
+Ajoute un système de protection des routes pour que certaines pages soient accessibles uniquement après connexion.
+
+Agis comme un développeur full-stack expert. Commence par créer le fichier firebase-config.js, puis la page d’inscription (register.html) avec la logique de création d’utilisateur via Firebase Auth. Ensuite, continue étape par étape selon la structure ci-dessus.
