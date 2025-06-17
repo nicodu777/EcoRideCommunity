@@ -34,20 +34,21 @@ export default function Dashboard() {
     enabled: !!user?.profile?.id,
   });
 
-  // Debug logs
-  console.log('Dashboard Debug:', {
-    user: user?.profile,
-    myTrips,
-    tripsLoading,
-    tripsError,
-    userId: user?.profile?.id,
-    queryEnabled: !!user?.profile?.id,
-    queryKey: `/api/trips/driver/${user?.profile?.id}`
-  });
-
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<BookingWithTrip[]>({
     queryKey: [`/api/bookings/passenger/${user?.profile?.id}`],
     enabled: !!user?.profile?.id,
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+
+  // Debug logs - Remove after testing
+  console.log('Dashboard Debug:', {
+    user: user?.profile,
+    myTrips: myTrips.length,
+    myBookings: myBookings.length,
+    tripsLoading,
+    bookingsLoading,
+    userId: user?.profile?.id
   });
 
   const handlePublishTrip = async (tripData: any) => {
