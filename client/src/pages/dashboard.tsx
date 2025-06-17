@@ -23,30 +23,7 @@ export default function Dashboard() {
   const [location] = useLocation();
   const { toast } = useToast();
 
-  // Déterminer l'onglet actif basé sur les paramètres d'URL
-  const getActiveTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tab = urlParams.get('tab');
-    
-    if (tab === 'publish') {
-      // Ouvrir le modal de publication pour mobile
-      if (!showPublishModal) {
-        setShowPublishModal(true);
-      }
-      return 'trips';
-    }
-    
-    switch (tab) {
-      case 'profile':
-        return 'profile';
-      case 'bookings':
-        return 'bookings';
-      default:
-        return 'trips';
-    }
-  };
-
-  const [activeTab, setActiveTab] = useState(getActiveTab());
+  const [activeTab, setActiveTab] = useState('trips');
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((user) => {
@@ -56,9 +33,31 @@ export default function Dashboard() {
     return unsubscribe;
   }, []);
 
-  // Écouter les changements d'URL pour mobile
+  // Gérer les paramètres d'URL pour mobile
   useEffect(() => {
-    setActiveTab(getActiveTab());
+    const urlParams = new URLSearchParams(window.location.search);
+    const tab = urlParams.get('tab');
+    
+    console.log('Dashboard URL params:', tab, 'Location:', location);
+    
+    if (tab === 'publish') {
+      console.log('Opening publish modal');
+      setShowPublishModal(true);
+      setActiveTab('trips');
+      // Nettoyer l'URL après ouverture du modal
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/dashboard');
+      }, 100);
+    } else if (tab === 'profile') {
+      console.log('Setting active tab to profile');
+      setActiveTab('profile');
+    } else if (tab === 'bookings') {
+      console.log('Setting active tab to bookings');
+      setActiveTab('bookings');
+    } else {
+      console.log('Setting active tab to trips');
+      setActiveTab('trips');
+    }
   }, [location]);
 
   const { data: myTrips = [], isLoading: tripsLoading, error: tripsError } = useQuery<Trip[]>({

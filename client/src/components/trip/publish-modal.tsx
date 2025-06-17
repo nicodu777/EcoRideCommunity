@@ -70,6 +70,10 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
   const handleClose = () => {
     resetForm();
     onClose();
+    // Pour mobile, nettoyer l'URL si nécessaire
+    if (window.location.search.includes('tab=publish')) {
+      window.history.replaceState({}, '', '/dashboard');
+    }
   };
 
   return (
