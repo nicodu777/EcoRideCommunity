@@ -94,7 +94,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/trips", async (req, res) => {
     try {
-      const tripData = insertTripSchema.parse(req.body);
+      // Convert date strings to Date objects
+      const requestData = {
+        ...req.body,
+        departureTime: new Date(req.body.departureTime),
+        arrivalTime: new Date(req.body.arrivalTime),
+      };
+      
+      const tripData = insertTripSchema.parse(requestData);
       const trip = await storage.createTrip(tripData);
       res.status(201).json(trip);
     } catch (error) {
