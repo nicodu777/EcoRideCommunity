@@ -1,4 +1,6 @@
 import { users, trips, bookings, ratings, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripWithDriver, type BookingWithTrip } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, like, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -479,4 +481,272 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async getTrip(id: number): Promise<Trip | undefined> {
+    const [trip] = await db.select().from(trips).where(eq(trips.id, id));
+    return trip || undefined;
+  }
+
+  async getTripWithDriver(id: number): Promise<TripWithDriver | undefined> {
+    const result = await db
+      .select({
+        id: trips.id,
+        driverId: trips.driverId,
+        departure: trips.departure,
+        destination: trips.destination,
+        departureTime: trips.departureTime,
+        arrivalTime: trips.arrivalTime,
+        availableSeats: trips.availableSeats,
+        totalSeats: trips.totalSeats,
+        pricePerSeat: trips.pricePerSeat,
+        description: trips.description,
+        isActive: trips.isActive,
+        createdAt: trips.createdAt,
+        driver: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          averageRating: users.averageRating,
+          totalRatings: users.totalRatings,
+        },
+      })
+      .from(trips)
+      .innerJoin(users, eq(trips.driverId, users.id))
+      .where(eq(trips.id, id));
+
+    return result[0] || undefined;
+  }
+
+  async getTripsByDriver(driverId: number): Promise<Trip[]> {
+    return await db.select().from(trips).where(eq(trips.driverId, driverId));
+  }
+
+  async searchTrips(departure: string, destination: string, date?: string): Promise<TripWithDriver[]> {
+    let query = db
+      .select({
+        id: trips.id,
+        driverId: trips.driverId,
+        departure: trips.departure,
+        destination: trips.destination,
+        departureTime: trips.departureTime,
+        arrivalTime: trips.arrivalTime,
+        availableSeats: trips.availableSeats,
+        totalSeats: trips.totalSeats,
+        pricePerSeat: trips.pricePerSeat,
+        description: trips.description,
+        isActive: trips.isActive,
+        createdAt: trips.createdAt,
+        driver: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          averageRating: users.averageRating,
+          totalRatings: users.totalRatings,
+        },
+      })
+      .from(trips)
+      .innerJoin(users, eq(trips.driverId, users.id))
+      .where(
+        and(
+          eq(trips.isActive, true),
+          like(trips.departure, `%${departure}%`),
+          like(trips.destination, `%${destination}%`),
+          sql`${trips.availableSeats} > 0`
+        )
+      );
+
+    if (date) {
+      query = query.where(
+        and(
+          eq(trips.isActive, true),
+          like(trips.departure, `%${departure}%`),
+          like(trips.destination, `%${destination}%`),
+          sql`${trips.availableSeats} > 0`,
+          sql`DATE(${trips.departureTime}) = ${date}`
+        )
+      );
+    }
+
+    return await query;
+  }
+
+  async getActiveTrips(): Promise<TripWithDriver[]> {
+    return await db
+      .select({
+        id: trips.id,
+        driverId: trips.driverId,
+        departure: trips.departure,
+        destination: trips.destination,
+        departureTime: trips.departureTime,
+        arrivalTime: trips.arrivalTime,
+        availableSeats: trips.availableSeats,
+        totalSeats: trips.totalSeats,
+        pricePerSeat: trips.pricePerSeat,
+        description: trips.description,
+        isActive: trips.isActive,
+        createdAt: trips.createdAt,
+        driver: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          averageRating: users.averageRating,
+          totalRatings: users.totalRatings,
+        },
+      })
+      .from(trips)
+      .innerJoin(users, eq(trips.driverId, users.id))
+      .where(
+        and(
+          eq(trips.isActive, true),
+          sql`${trips.availableSeats} > 0`
+        )
+      );
+  }
+
+  async createTrip(insertTrip: InsertTrip): Promise<Trip> {
+    const [trip] = await db
+      .insert(trips)
+      .values(insertTrip)
+      .returning();
+    return trip;
+  }
+
+  async updateTrip(id: number, updates: Partial<Trip>): Promise<Trip | undefined> {
+    const [trip] = await db
+      .update(trips)
+      .set(updates)
+      .where(eq(trips.id, id))
+      .returning();
+    return trip || undefined;
+  }
+
+  async deleteTrip(id: number): Promise<boolean> {
+    const result = await db.delete(trips).where(eq(trips.id, id));
+    return result.rowCount > 0;
+  }
+
+  async getBooking(id: number): Promise<Booking | undefined> {
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, id));
+    return booking || undefined;
+  }
+
+  async getBookingsByTrip(tripId: number): Promise<Booking[]> {
+    return await db.select().from(bookings).where(eq(bookings.tripId, tripId));
+  }
+
+  async getBookingsByPassenger(passengerId: number): Promise<BookingWithTrip[]> {
+    return await db
+      .select({
+        id: bookings.id,
+        tripId: bookings.tripId,
+        passengerId: bookings.passengerId,
+        seatsBooked: bookings.seatsBooked,
+        totalPrice: bookings.totalPrice,
+        status: bookings.status,
+        message: bookings.message,
+        createdAt: bookings.createdAt,
+        trip: {
+          id: trips.id,
+          driverId: trips.driverId,
+          departure: trips.departure,
+          destination: trips.destination,
+          departureTime: trips.departureTime,
+          arrivalTime: trips.arrivalTime,
+          availableSeats: trips.availableSeats,
+          totalSeats: trips.totalSeats,
+          pricePerSeat: trips.pricePerSeat,
+          description: trips.description,
+          isActive: trips.isActive,
+          createdAt: trips.createdAt,
+          driver: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            averageRating: users.averageRating,
+            totalRatings: users.totalRatings,
+          },
+        },
+      })
+      .from(bookings)
+      .innerJoin(trips, eq(bookings.tripId, trips.id))
+      .innerJoin(users, eq(trips.driverId, users.id))
+      .where(eq(bookings.passengerId, passengerId));
+  }
+
+  async createBooking(insertBooking: InsertBooking): Promise<Booking> {
+    const [booking] = await db
+      .insert(bookings)
+      .values(insertBooking)
+      .returning();
+    return booking;
+  }
+
+  async updateBooking(id: number, updates: Partial<Booking>): Promise<Booking | undefined> {
+    const [booking] = await db
+      .update(bookings)
+      .set(updates)
+      .where(eq(bookings.id, id))
+      .returning();
+    return booking || undefined;
+  }
+
+  async getRatingsByRatee(rateeId: number): Promise<Rating[]> {
+    return await db.select().from(ratings).where(eq(ratings.rateeId, rateeId));
+  }
+
+  async createRating(insertRating: InsertRating): Promise<Rating> {
+    const [rating] = await db
+      .insert(ratings)
+      .values(insertRating)
+      .returning();
+    return rating;
+  }
+
+  async updateUserRating(userId: number): Promise<void> {
+    const userRatings = await this.getRatingsByRatee(userId);
+    
+    if (userRatings.length > 0) {
+      const totalRating = userRatings.reduce((sum, rating) => sum + rating.rating, 0);
+      const averageRating = (totalRating / userRatings.length).toFixed(1);
+      
+      await this.updateUser(userId, {
+        averageRating: averageRating,
+        totalRatings: userRatings.length,
+      });
+    }
+  }
+}
+
+export const storage = new DatabaseStorage();

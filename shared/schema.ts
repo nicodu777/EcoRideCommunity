@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -77,6 +78,52 @@ export const insertRatingSchema = createInsertSchema(ratings).omit({
   id: true,
   createdAt: true,
 });
+
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  tripsAsDriver: many(trips),
+  bookingsAsPassenger: many(bookings, { relationName: "passenger" }),
+  ratingsGiven: many(ratings, { relationName: "rater" }),
+  ratingsReceived: many(ratings, { relationName: "ratee" }),
+}));
+
+export const tripsRelations = relations(trips, ({ one, many }) => ({
+  driver: one(users, {
+    fields: [trips.driverId],
+    references: [users.id],
+  }),
+  bookings: many(bookings),
+  ratings: many(ratings),
+}));
+
+export const bookingsRelations = relations(bookings, ({ one }) => ({
+  trip: one(trips, {
+    fields: [bookings.tripId],
+    references: [trips.id],
+  }),
+  passenger: one(users, {
+    fields: [bookings.passengerId],
+    references: [users.id],
+    relationName: "passenger",
+  }),
+}));
+
+export const ratingsRelations = relations(ratings, ({ one }) => ({
+  trip: one(trips, {
+    fields: [ratings.tripId],
+    references: [trips.id],
+  }),
+  rater: one(users, {
+    fields: [ratings.raterId],
+    references: [users.id],
+    relationName: "rater",
+  }),
+  ratee: one(users, {
+    fields: [ratings.rateeId],
+    references: [users.id],
+    relationName: "ratee",
+  }),
+}));
 
 // Types
 export type User = typeof users.$inferSelect;
