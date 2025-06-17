@@ -30,6 +30,16 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
 
   if (!trip) return null;
 
+  // Reset form when modal opens
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // Reset form state when closing
+      setSeatsBooked(1);
+      setMessage("");
+      onClose();
+    }
+  };
+
   const totalPrice = parseFloat(trip.pricePerSeat) * seatsBooked;
 
   const handleConfirm = () => {
@@ -40,8 +50,8 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
     return `${trip.driver.firstName[0]}${trip.driver.lastName[0]}`.toUpperCase();
   };
 
-  const renderStars = (rating: string) => {
-    const ratingNum = parseFloat(rating);
+  const renderStars = (rating: string | null) => {
+    const ratingNum = parseFloat(rating || "0");
     const fullStars = Math.floor(ratingNum);
     
     return (
@@ -58,7 +68,7 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -87,7 +97,7 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
                   <div className="flex items-center space-x-1">
                     {renderStars(trip.driver.averageRating)}
                     <span className="text-sm text-slate-600 ml-1">
-                      {parseFloat(trip.driver.averageRating).toFixed(1)}
+                      {trip.driver.averageRating ? parseFloat(trip.driver.averageRating).toFixed(1) : "0.0"}
                     </span>
                   </div>
                 </div>

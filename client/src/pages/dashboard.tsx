@@ -41,15 +41,7 @@ export default function Dashboard() {
     refetchOnMount: true,
   });
 
-  // Debug logs - Remove after testing
-  console.log('Dashboard Debug:', {
-    user: user?.profile,
-    myTrips: myTrips.length,
-    myBookings: myBookings.length,
-    tripsLoading,
-    bookingsLoading,
-    userId: user?.profile?.id
-  });
+
 
   const handlePublishTrip = async (tripData: any) => {
     if (!user?.profile) return;
