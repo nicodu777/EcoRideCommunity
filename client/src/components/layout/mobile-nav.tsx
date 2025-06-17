@@ -48,14 +48,15 @@ export function MobileNav() {
           </div>
         </Link>
         
-        <Link href="/dashboard?tab=profile">
-          <div className={`flex flex-col items-center py-2 ${
+        <button 
+          onClick={() => window.location.href = '/dashboard?tab=profile'}
+          className={`flex flex-col items-center py-2 ${
             location.includes('profile') ? 'text-eco-green' : 'text-slate-400'
-          }`}>
-            <User className="mb-1" size={20} />
-            <span className="text-xs">Profil</span>
-          </div>
-        </Link>
+          }`}
+        >
+          <User className="mb-1" size={20} />
+          <span className="text-xs">Profil</span>
+        </button>
       </div>
     </nav>
   );
