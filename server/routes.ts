@@ -234,6 +234,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Trip management routes for drivers
+  app.put("/api/trips/:id/start", async (req, res) => {
+    try {
+      const tripId = parseInt(req.params.id);
+      const driverId = parseInt(req.body.driverId);
+      const trip = await storage.startTrip(tripId, driverId);
+      
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found or unauthorized" });
+      }
+      
+      res.json(trip);
+    } catch (error) {
+      console.error("Error starting trip:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/trips/:id/complete", async (req, res) => {
+    try {
+      const tripId = parseInt(req.params.id);
+      const driverId = parseInt(req.body.driverId);
+      const trip = await storage.completeTrip(tripId, driverId);
+      
+      if (!trip) {
+        return res.status(404).json({ message: "Trip not found or unauthorized" });
+      }
+      
+      res.json(trip);
+    } catch (error) {
+      console.error("Error completing trip:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Trip issues routes
+  app.post("/api/trip-issues", async (req, res) => {
+    try {
+      const issueData = req.body;
+      const issue = await storage.createTripIssue(issueData);
+      res.status(201).json(issue);
+    } catch (error) {
+      console.error("Error creating trip issue:", error);
+      res.status(400).json({ message: "Invalid issue data" });
+    }
+  });
+
+  app.get("/api/trip-issues", async (req, res) => {
+    try {
+      const issues = await storage.getTripIssues();
+      res.json(issues);
+    } catch (error) {
+      console.error("Error fetching trip issues:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/trip-issues/:id/resolve", async (req, res) => {
+    try {
+      const issueId = parseInt(req.params.id);
+      const { employeeId, resolution } = req.body;
+      const issue = await storage.resolveTripIssue(issueId, employeeId, resolution);
+      
+      if (!issue) {
+        return res.status(404).json({ message: "Issue not found" });
+      }
+      
+      res.json(issue);
+    } catch (error) {
+      console.error("Error resolving trip issue:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Rating management routes for employees
+  app.get("/api/ratings/pending", async (req, res) => {
+    try {
+      const ratings = await storage.getPendingRatings();
+      res.json(ratings);
+    } catch (error) {
+      console.error("Error fetching pending ratings:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/ratings/:id/approve", async (req, res) => {
+    try {
+      const ratingId = parseInt(req.params.id);
+      const employeeId = parseInt(req.body.employeeId);
+      const rating = await storage.approveRating(ratingId, employeeId);
+      
+      if (!rating) {
+        return res.status(404).json({ message: "Rating not found" });
+      }
+      
+      res.json(rating);
+    } catch (error) {
+      console.error("Error approving rating:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/ratings/:id/reject", async (req, res) => {
+    try {
+      const ratingId = parseInt(req.params.id);
+      const employeeId = parseInt(req.body.employeeId);
+      const rating = await storage.rejectRating(ratingId, employeeId);
+      
+      if (!rating) {
+        return res.status(404).json({ message: "Rating not found" });
+      }
+      
+      res.json(rating);
+    } catch (error) {
+      console.error("Error rejecting rating:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Admin routes
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching all users:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.put("/api/admin/users/:id/suspend", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const success = await storage.suspendUser(userId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User suspended successfully" });
+    } catch (error) {
+      console.error("Error suspending user:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/analytics/daily-trips", async (req, res) => {
+    try {
+      const data = await storage.getDailyTripCounts();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching daily trip counts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/analytics/daily-earnings", async (req, res) => {
+    try {
+      const data = await storage.getDailyEarnings();
+      res.json(data);
+    } catch (error) {
+      console.error("Error fetching daily earnings:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/admin/analytics/total-earnings", async (req, res) => {
+    try {
+      const total = await storage.getTotalEarnings();
+      res.json({ total });
+    } catch (error) {
+      console.error("Error fetching total earnings:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

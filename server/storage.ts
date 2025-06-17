@@ -1,6 +1,6 @@
-import { users, trips, bookings, ratings, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripWithDriver, type BookingWithTrip } from "@shared/schema";
+import { users, trips, bookings, ratings, tripIssues, platformEarnings, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, like, sql } from "drizzle-orm";
+import { eq, and, like, sql, desc, count, gte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -9,16 +9,21 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  suspendUser(id: number): Promise<boolean>;
   
   // Trip operations
   getTrip(id: number): Promise<Trip | undefined>;
   getTripWithDriver(id: number): Promise<TripWithDriver | undefined>;
+  getTripWithDetails(id: number): Promise<TripWithDetails | undefined>;
   getTripsByDriver(driverId: number): Promise<Trip[]>;
   searchTrips(departure: string, destination: string, date?: string): Promise<TripWithDriver[]>;
   getActiveTrips(): Promise<TripWithDriver[]>;
   createTrip(trip: InsertTrip): Promise<Trip>;
   updateTrip(id: number, updates: Partial<Trip>): Promise<Trip | undefined>;
   deleteTrip(id: number): Promise<boolean>;
+  startTrip(id: number, driverId: number): Promise<Trip | undefined>;
+  completeTrip(id: number, driverId: number): Promise<Trip | undefined>;
   
   // Booking operations
   getBooking(id: number): Promise<Booking | undefined>;
@@ -29,8 +34,24 @@ export interface IStorage {
   
   // Rating operations
   getRatingsByRatee(rateeId: number): Promise<Rating[]>;
+  getPendingRatings(): Promise<Rating[]>;
   createRating(rating: InsertRating): Promise<Rating>;
   updateUserRating(userId: number): Promise<void>;
+  approveRating(id: number, employeeId: number): Promise<Rating | undefined>;
+  rejectRating(id: number, employeeId: number): Promise<Rating | undefined>;
+  
+  // Trip Issues operations
+  createTripIssue(issue: InsertTripIssue): Promise<TripIssue>;
+  getTripIssues(): Promise<TripIssue[]>;
+  resolveTripIssue(id: number, employeeId: number, resolution: string): Promise<TripIssue | undefined>;
+  
+  // Platform Earnings operations
+  createPlatformEarning(earning: InsertPlatformEarnings): Promise<PlatformEarnings>;
+  getDailyEarnings(): Promise<{ date: string; amount: string; trips: number }[]>;
+  getTotalEarnings(): Promise<string>;
+  
+  // Analytics operations
+  getDailyTripCounts(): Promise<{ date: string; count: number }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -533,6 +554,9 @@ export class DatabaseStorage implements IStorage {
         pricePerSeat: trips.pricePerSeat,
         description: trips.description,
         isActive: trips.isActive,
+        status: trips.status,
+        startedAt: trips.startedAt,
+        completedAt: trips.completedAt,
         createdAt: trips.createdAt,
         driver: {
           id: users.id,
@@ -746,6 +770,242 @@ export class DatabaseStorage implements IStorage {
         totalRatings: userRatings.length,
       });
     }
+  }
+
+  // New methods for the enhanced functionality
+  
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  async suspendUser(id: number): Promise<boolean> {
+    const [user] = await db
+      .update(users)
+      .set({ isSuspended: true })
+      .where(eq(users.id, id))
+      .returning();
+    return !!user;
+  }
+
+  async getTripWithDetails(id: number): Promise<TripWithDetails | undefined> {
+    const result = await db
+      .select({
+        id: trips.id,
+        driverId: trips.driverId,
+        departure: trips.departure,
+        destination: trips.destination,
+        departureTime: trips.departureTime,
+        arrivalTime: trips.arrivalTime,
+        availableSeats: trips.availableSeats,
+        totalSeats: trips.totalSeats,
+        pricePerSeat: trips.pricePerSeat,
+        description: trips.description,
+        isActive: trips.isActive,
+        status: trips.status,
+        startedAt: trips.startedAt,
+        completedAt: trips.completedAt,
+        createdAt: trips.createdAt,
+        driver: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          phone: users.phone,
+        },
+      })
+      .from(trips)
+      .innerJoin(users, eq(trips.driverId, users.id))
+      .where(eq(trips.id, id));
+
+    if (!result[0]) return undefined;
+
+    const tripBookings = await db
+      .select({
+        id: bookings.id,
+        tripId: bookings.tripId,
+        passengerId: bookings.passengerId,
+        seatsBooked: bookings.seatsBooked,
+        totalPrice: bookings.totalPrice,
+        status: bookings.status,
+        message: bookings.message,
+        createdAt: bookings.createdAt,
+        passenger: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
+      .from(bookings)
+      .innerJoin(users, eq(bookings.passengerId, users.id))
+      .where(eq(bookings.tripId, id));
+
+    return {
+      ...result[0],
+      bookings: tripBookings,
+    };
+  }
+
+  async startTrip(id: number, driverId: number): Promise<Trip | undefined> {
+    const [trip] = await db
+      .update(trips)
+      .set({ 
+        status: 'started', 
+        startedAt: new Date() 
+      })
+      .where(and(eq(trips.id, id), eq(trips.driverId, driverId)))
+      .returning();
+    return trip || undefined;
+  }
+
+  async completeTrip(id: number, driverId: number): Promise<Trip | undefined> {
+    const [trip] = await db
+      .update(trips)
+      .set({ 
+        status: 'completed', 
+        completedAt: new Date() 
+      })
+      .where(and(eq(trips.id, id), eq(trips.driverId, driverId)))
+      .returning();
+    
+    if (trip) {
+      // Mark all bookings as completed
+      await db
+        .update(bookings)
+        .set({ status: 'completed' })
+        .where(eq(bookings.tripId, id));
+      
+      // Create platform earnings record (10% commission)
+      const totalEarnings = await db
+        .select({ 
+          total: sql<string>`SUM(${bookings.totalPrice})` 
+        })
+        .from(bookings)
+        .where(eq(bookings.tripId, id));
+      
+      if (totalEarnings[0]?.total) {
+        const commission = parseFloat(totalEarnings[0].total) * 0.1;
+        await this.createPlatformEarning({
+          tripId: id,
+          amount: commission.toFixed(2),
+        });
+      }
+      
+      // Update driver credits
+      const driverEarnings = parseFloat(totalEarnings[0]?.total || '0') * 0.9;
+      await db
+        .update(users)
+        .set({ 
+          credits: sql`${users.credits} + ${driverEarnings.toFixed(2)}` 
+        })
+        .where(eq(users.id, driverId));
+    }
+    
+    return trip || undefined;
+  }
+
+  async getPendingRatings(): Promise<Rating[]> {
+    return await db.select().from(ratings).where(sql`${ratings.isApproved} IS NULL`);
+  }
+
+  async approveRating(id: number, employeeId: number): Promise<Rating | undefined> {
+    const [rating] = await db
+      .update(ratings)
+      .set({ 
+        isApproved: true, 
+        reviewedBy: employeeId, 
+        reviewedAt: new Date() 
+      })
+      .where(eq(ratings.id, id))
+      .returning();
+    
+    if (rating) {
+      await this.updateUserRating(rating.rateeId);
+    }
+    
+    return rating || undefined;
+  }
+
+  async rejectRating(id: number, employeeId: number): Promise<Rating | undefined> {
+    const [rating] = await db
+      .update(ratings)
+      .set({ 
+        isApproved: false, 
+        reviewedBy: employeeId, 
+        reviewedAt: new Date() 
+      })
+      .where(eq(ratings.id, id))
+      .returning();
+    return rating || undefined;
+  }
+
+  async createTripIssue(issue: InsertTripIssue): Promise<TripIssue> {
+    const [tripIssue] = await db
+      .insert(tripIssues)
+      .values(issue)
+      .returning();
+    return tripIssue;
+  }
+
+  async getTripIssues(): Promise<TripIssue[]> {
+    return await db.select().from(tripIssues).orderBy(desc(tripIssues.createdAt));
+  }
+
+  async resolveTripIssue(id: number, employeeId: number, resolution: string): Promise<TripIssue | undefined> {
+    const [issue] = await db
+      .update(tripIssues)
+      .set({ 
+        status: 'resolved', 
+        handledBy: employeeId, 
+        resolution, 
+        resolvedAt: new Date() 
+      })
+      .where(eq(tripIssues.id, id))
+      .returning();
+    return issue || undefined;
+  }
+
+  async createPlatformEarning(earning: InsertPlatformEarnings): Promise<PlatformEarnings> {
+    const [platformEarning] = await db
+      .insert(platformEarnings)
+      .values(earning)
+      .returning();
+    return platformEarning;
+  }
+
+  async getDailyEarnings(): Promise<{ date: string; amount: string; trips: number }[]> {
+    return await db
+      .select({
+        date: sql<string>`DATE(${platformEarnings.date})`,
+        amount: sql<string>`SUM(${platformEarnings.amount})`,
+        trips: sql<number>`COUNT(${platformEarnings.tripId})`
+      })
+      .from(platformEarnings)
+      .groupBy(sql`DATE(${platformEarnings.date})`)
+      .orderBy(sql`DATE(${platformEarnings.date}) DESC`)
+      .limit(30);
+  }
+
+  async getTotalEarnings(): Promise<string> {
+    const result = await db
+      .select({
+        total: sql<string>`SUM(${platformEarnings.amount})`
+      })
+      .from(platformEarnings);
+    
+    return result[0]?.total || '0.00';
+  }
+
+  async getDailyTripCounts(): Promise<{ date: string; count: number }[]> {
+    return await db
+      .select({
+        date: sql<string>`DATE(${trips.createdAt})`,
+        count: sql<number>`COUNT(${trips.id})`
+      })
+      .from(trips)
+      .groupBy(sql`DATE(${trips.createdAt})`)
+      .orderBy(sql`DATE(${trips.createdAt}) DESC`)
+      .limit(30);
   }
 }
 
