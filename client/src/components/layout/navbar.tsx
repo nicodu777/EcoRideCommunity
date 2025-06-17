@@ -99,19 +99,15 @@ export function Navbar() {
                     </Link>
                   </DropdownMenuItem>
                   {user.profile?.role === 'employee' && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/employee" className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Espace employé
-                      </Link>
+                    <DropdownMenuItem onClick={() => window.location.href = '/employee'}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Espace employé
                     </DropdownMenuItem>
                   )}
                   {user.profile?.role === 'admin' && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin" className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Administration
-                      </Link>
+                    <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      Administration
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={handleLogout}>
