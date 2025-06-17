@@ -1,0 +1,333 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { authService, AuthUser } from "@/lib/auth";
+import { Trip, BookingWithTrip } from "@shared/schema";
+import { TripCard } from "@/components/trip/trip-card";
+import { PublishModal } from "@/components/trip/publish-modal";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Car, Calendar, User, Star } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+
+export default function Dashboard() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((user) => {
+      setUser(user);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  const { data: myTrips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
+    queryKey: ['/api/trips/driver', user?.profile?.id],
+    enabled: !!user?.profile?.id,
+  });
+
+  const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<BookingWithTrip[]>({
+    queryKey: ['/api/bookings/passenger', user?.profile?.id],
+    enabled: !!user?.profile?.id,
+  });
+
+  const handlePublishTrip = async (tripData: any) => {
+    if (!user?.profile) return;
+
+    setPublishLoading(true);
+    try {
+      await apiRequest("POST", "/api/trips", {
+        ...tripData,
+        driverId: user.profile.id,
+      });
+
+      toast({
+        title: "Trajet publié",
+        description: "Votre trajet a été publié avec succès.",
+      });
+
+      setShowPublishModal(false);
+    } catch (error) {
+      console.error("Error publishing trip:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de publier le trajet. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setPublishLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'completed':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'confirmed':
+        return 'Confirmé';
+      case 'pending':
+        return 'En attente';
+      case 'cancelled':
+        return 'Annulé';
+      case 'completed':
+        return 'Terminé';
+      default:
+        return status;
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900">
+            Bonjour, {user.profile?.firstName || user.displayName || 'Utilisateur'} !
+          </h1>
+          <p className="text-slate-600 mt-2">
+            Gérez vos trajets et réservations depuis votre tableau de bord.
+          </p>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Car className="w-8 h-8 text-eco-green mx-auto mb-2" />
+              <div className="text-2xl font-bold text-slate-900">{myTrips.length}</div>
+              <div className="text-sm text-slate-600">Trajets publiés</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Calendar className="w-8 h-8 text-eco-blue mx-auto mb-2" />
+              <div className="text-2xl font-bold text-slate-900">{myBookings.length}</div>
+              <div className="text-sm text-slate-600">Réservations</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <Star className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-slate-900">
+                {user.profile ? parseFloat(user.profile.averageRating).toFixed(1) : '0.0'}
+              </div>
+              <div className="text-sm text-slate-600">Note moyenne</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-6 text-center">
+              <User className="w-8 h-8 text-eco-trust mx-auto mb-2" />
+              <div className="text-2xl font-bold text-slate-900">
+                {user.profile?.totalRatings || 0}
+              </div>
+              <div className="text-sm text-slate-600">Évaluations</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs defaultValue="trips" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="trips">Mes trajets</TabsTrigger>
+            <TabsTrigger value="bookings">Mes réservations</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="trips" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Trajets publiés</h2>
+              <Button
+                onClick={() => setShowPublishModal(true)}
+                className="bg-eco-green hover:bg-green-600"
+              >
+                <Plus className="mr-2" size={16} />
+                Publier un trajet
+              </Button>
+            </div>
+
+            {tripsLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : myTrips.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Car className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">
+                    Aucun trajet publié
+                  </h3>
+                  <p className="text-slate-600 mb-4">
+                    Commencez par publier votre premier trajet pour partager vos déplacements.
+                  </p>
+                  <Button
+                    onClick={() => setShowPublishModal(true)}
+                    className="bg-eco-green hover:bg-green-600"
+                  >
+                    <Plus className="mr-2" size={16} />
+                    Publier mon premier trajet
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {myTrips.map((trip) => (
+                  <Card key={trip.id}>
+                    <CardContent className="p-6">
+                      <div className="space-y-3 mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-eco-green rounded-full"></div>
+                          <span className="text-slate-900 font-medium">{trip.departure}</span>
+                        </div>
+                        <div className="w-px h-6 bg-slate-300 ml-1.5"></div>
+                        <div className="flex items-center space-x-3">
+                          <div className="w-3 h-3 bg-eco-blue rounded-full"></div>
+                          <span className="text-slate-900 font-medium">{trip.destination}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="text-sm text-slate-600">
+                          {format(new Date(trip.departureTime), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                        </div>
+                        <div className="text-lg font-bold text-slate-900">
+                          {parseFloat(trip.pricePerSeat).toFixed(0)}€
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">
+                          {trip.availableSeats} / {trip.totalSeats} places libres
+                        </span>
+                        <Badge className={trip.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                          {trip.isActive ? "Actif" : "Inactif"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="bookings" className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-900">Mes réservations</h2>
+
+            {bookingsLoading ? (
+              <div className="flex justify-center py-12">
+                <LoadingSpinner size="lg" />
+              </div>
+            ) : myBookings.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-slate-900 mb-2">
+                    Aucune réservation
+                  </h3>
+                  <p className="text-slate-600 mb-4">
+                    Vous n'avez pas encore réservé de trajet. Recherchez un trajet pour commencer !
+                  </p>
+                  <Button className="bg-eco-green hover:bg-green-600">
+                    Rechercher un trajet
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {myBookings.map((booking) => (
+                  <Card key={booking.id}>
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className="w-3 h-3 bg-eco-green rounded-full"></div>
+                            <span className="text-slate-900 font-medium">
+                              {booking.trip.departure}
+                            </span>
+                          </div>
+                          <div className="w-px h-6 bg-slate-300 ml-1.5"></div>
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-3 h-3 bg-eco-blue rounded-full"></div>
+                            <span className="text-slate-900 font-medium">
+                              {booking.trip.destination}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-4 text-sm text-slate-600">
+                            <span>
+                              {format(new Date(booking.trip.departureTime), 'dd MMM yyyy à HH:mm', { locale: fr })}
+                            </span>
+                            <span>{booking.seatsBooked} place{booking.seatsBooked > 1 ? 's' : ''}</span>
+                            <span className="font-medium text-slate-900">
+                              {parseFloat(booking.totalPrice).toFixed(0)}€
+                            </span>
+                          </div>
+                        </div>
+
+                        <Badge className={getStatusColor(booking.status)}>
+                          {getStatusText(booking.status)}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-slate-600">Conducteur:</span>
+                          <span className="text-sm font-medium text-slate-900">
+                            {booking.trip.driver.firstName} {booking.trip.driver.lastName}
+                          </span>
+                          <div className="flex items-center space-x-1">
+                            <Star className="text-yellow-400" size={14} />
+                            <span className="text-sm text-slate-600">
+                              {parseFloat(booking.trip.driver.averageRating).toFixed(1)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <PublishModal
+        open={showPublishModal}
+        onClose={() => setShowPublishModal(false)}
+        onPublish={handlePublishTrip}
+        loading={publishLoading}
+      />
+    </div>
+  );
+}
