@@ -29,10 +29,20 @@ export default function Dashboard() {
     return unsubscribe;
   }, []);
 
-  const { data: myTrips = [], isLoading: tripsLoading } = useQuery<Trip[]>({
-    queryKey: ['/api/trips/driver', user?.profile?.id],
-    queryFn: () => fetch(`/api/trips/driver/${user?.profile?.id}`).then(res => res.json()),
+  const { data: myTrips = [], isLoading: tripsLoading, error: tripsError } = useQuery<Trip[]>({
+    queryKey: [`/api/trips/driver/${user?.profile?.id}`],
     enabled: !!user?.profile?.id,
+  });
+
+  // Debug logs
+  console.log('Dashboard Debug:', {
+    user: user?.profile,
+    myTrips,
+    tripsLoading,
+    tripsError,
+    userId: user?.profile?.id,
+    queryEnabled: !!user?.profile?.id,
+    queryKey: `/api/trips/driver/${user?.profile?.id}`
   });
 
   const { data: myBookings = [], isLoading: bookingsLoading } = useQuery<BookingWithTrip[]>({
@@ -51,7 +61,7 @@ export default function Dashboard() {
       });
 
       // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: ['/api/trips/driver', user.profile.id] });
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
       toast({
@@ -173,6 +183,17 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!user.profile) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Chargement du profil...</h2>
+          <LoadingSpinner size="lg" />
+        </div>
       </div>
     );
   }
