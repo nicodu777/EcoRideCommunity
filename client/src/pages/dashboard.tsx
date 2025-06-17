@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function Dashboard() {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
   const { toast } = useToast();
