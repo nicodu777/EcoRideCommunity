@@ -41,19 +41,68 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation des champs
+    if (!departure.trim()) {
+      alert("Veuillez entrer un point de départ");
+      return;
+    }
+    if (!destination.trim()) {
+      alert("Veuillez entrer une destination");
+      return;
+    }
+    if (!departureDate) {
+      alert("Veuillez sélectionner une date de départ");
+      return;
+    }
+    if (!departureTime) {
+      alert("Veuillez sélectionner une heure de départ");
+      return;
+    }
+    if (!arrivalTime) {
+      alert("Veuillez sélectionner une heure d'arrivée");
+      return;
+    }
+    if (availableSeats < 1 || availableSeats > 8) {
+      alert("Le nombre de places doit être entre 1 et 8");
+      return;
+    }
+    if (pricePerSeat <= 0) {
+      alert("Le prix par place doit être supérieur à 0");
+      return;
+    }
+    
     const departureDateTime = new Date(`${departureDate}T${departureTime}`);
     const arrivalDateTime = new Date(`${departureDate}T${arrivalTime}`);
     
-    onPublish({
-      departure,
-      destination,
+    // Validation des dates
+    if (isNaN(departureDateTime.getTime()) || isNaN(arrivalDateTime.getTime())) {
+      alert("Dates invalides");
+      return;
+    }
+    
+    if (departureDateTime >= arrivalDateTime) {
+      alert("L'heure d'arrivée doit être après l'heure de départ");
+      return;
+    }
+
+    if (departureDateTime <= new Date()) {
+      alert("L'heure de départ doit être dans le futur");
+      return;
+    }
+    
+    const tripData = {
+      departure: departure.trim(),
+      destination: destination.trim(),
       departureTime: departureDateTime,
       arrivalTime: arrivalDateTime,
-      availableSeats,
-      totalSeats: availableSeats,
-      pricePerSeat,
-      description: description || undefined,
-    });
+      availableSeats: Number(availableSeats),
+      totalSeats: Number(availableSeats),
+      pricePerSeat: Number(pricePerSeat),
+      description: description.trim() || undefined,
+    };
+
+    console.log("Submitting trip data:", tripData);
+    onPublish(tripData);
   };
 
   const resetForm = () => {

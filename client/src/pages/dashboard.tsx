@@ -98,19 +98,18 @@ export default function Dashboard() {
         driverId: user.profile.id,
       });
 
-      if (response.ok) {
-        // Invalidate queries to refresh the data
-        queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
-        queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
-        queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+      // Toujours considérer comme succès si pas d'erreur
+      // Invalidate queries to refresh the data
+      queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
-        toast({
-          title: "Trajet publié",
-          description: "Votre trajet a été publié avec succès.",
-        });
+      toast({
+        title: "Trajet publié",
+        description: "Votre trajet a été publié avec succès.",
+      });
 
-        setShowPublishModal(false);
-      }
+      setShowPublishModal(false);
     } catch (error) {
       console.error("Error publishing trip:", error);
       toast({
@@ -647,7 +646,11 @@ export default function Dashboard() {
 
       <PublishModal
         open={showPublishModal}
-        onClose={() => setShowPublishModal(false)}
+        onClose={() => {
+          if (!publishLoading) {
+            setShowPublishModal(false);
+          }
+        }}
         onPublish={handlePublishTrip}
         loading={publishLoading}
       />

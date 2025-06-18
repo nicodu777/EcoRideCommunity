@@ -28,20 +28,27 @@ export class AuthService {
   constructor() {
     onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        console.log("Firebase user authenticated:", firebaseUser.uid);
         try {
           // Get user profile from our backend
           const response = await fetch(`/api/users/firebase/${firebaseUser.uid}`);
-          const profile = response.ok ? await response.json() : null;
-          
-          this.currentUser = {
-            ...firebaseUser,
-            profile,
-          };
+          if (response.ok) {
+            const profile = await response.json();
+            this.currentUser = {
+              ...firebaseUser,
+              profile,
+            };
+            console.log("User profile loaded:", profile);
+          } else {
+            console.warn("No backend profile found, using Firebase user only");
+            this.currentUser = firebaseUser as AuthUser;
+          }
         } catch (error) {
           console.error("Error fetching user profile:", error);
           this.currentUser = firebaseUser as AuthUser;
         }
       } else {
+        console.log("User logged out");
         this.currentUser = null;
       }
       
