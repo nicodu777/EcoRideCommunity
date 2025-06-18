@@ -700,29 +700,29 @@ export default function Dashboard() {
           </TabsContent>
         </Tabs>
 
-      <PublishModal
-        open={showPublishModal}
-        onClose={() => {
-          if (!publishLoading) {
-            setShowPublishModal(false);
-          }
-        }}
-        onPublish={handlePublishTrip}
-        loading={publishLoading}
-      />
-
-      {/* Chat Window */}
-      {showChatWindow && selectedTripForChat && user?.profile && (
-        <ChatWindow
-          tripId={selectedTripForChat}
-          userId={user.profile.id}
-          isOpen={showChatWindow}
+        <PublishModal
+          open={showPublishModal}
           onClose={() => {
-            setShowChatWindow(false);
-            setSelectedTripForChat(null);
+            if (!publishLoading) {
+              setShowPublishModal(false);
+            }
           }}
+          onPublish={handlePublishTrip}
+          loading={publishLoading}
         />
-      )}
+
+        {/* Chat Window */}
+        {showChatWindow && selectedTripForChat && user?.profile && (
+          <ChatWindow
+            tripId={selectedTripForChat}
+            userId={user.profile.id}
+            isOpen={showChatWindow}
+            onClose={() => {
+              setShowChatWindow(false);
+              setSelectedTripForChat(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
