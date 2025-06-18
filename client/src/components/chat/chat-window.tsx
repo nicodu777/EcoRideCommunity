@@ -35,8 +35,8 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
 
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/trip/${tripId}`],
-    enabled: isOpen,
-    refetchInterval: 2000,
+    enabled: isOpen && !!tripId,
+    refetchInterval: 5000, // Réduire la fréquence des requêtes
   });
 
   const sendMessageMutation = useMutation({

@@ -95,6 +95,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/trips", async (req, res) => {
     try {
+      console.log("Creating trip with data:", req.body);
+      
+      // Validation simple avant parsing
+      if (!req.body.driverId || !req.body.departure || !req.body.destination) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
       // Convert date strings to Date objects and price to string
       const requestData = {
         ...req.body,
@@ -105,10 +112,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tripData = insertTripSchema.parse(requestData);
       const trip = await storage.createTrip(tripData);
+      console.log("Trip created successfully:", trip);
       res.status(201).json(trip);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Validation error:", error.errors);
+        return res.status(400).json({ message: "Invalid trip data", errors: error.errors });
+      }
       console.error("Error creating trip:", error);
-      res.status(400).json({ message: "Invalid trip data" });
+      res.status(500).json({ message: "Internal server error" });
     }
   });
 

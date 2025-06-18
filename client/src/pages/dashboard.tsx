@@ -81,31 +81,41 @@ export default function Dashboard() {
 
 
   const handlePublishTrip = async (tripData: any) => {
-    if (!user?.profile) return;
+    if (!user?.profile) {
+      toast({
+        title: "Erreur d'authentification",
+        description: "Vous devez être connecté pour publier un trajet.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setPublishLoading(true);
     try {
-      await apiRequest("POST", "/api/trips", {
+      console.log("Publishing trip for user:", user.profile.id);
+      const response = await apiRequest("POST", "/api/trips", {
         ...tripData,
         driverId: user.profile.id,
       });
 
-      // Invalidate queries to refresh the data
-      queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
+      if (response.ok) {
+        // Invalidate queries to refresh the data
+        queryClient.invalidateQueries({ queryKey: [`/api/trips/driver/${user.profile.id}`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/bookings/passenger/${user.profile.id}`] });
+        queryClient.invalidateQueries({ queryKey: ['/api/trips'] });
 
-      toast({
-        title: "Trajet publié",
-        description: "Votre trajet a été publié avec succès.",
-      });
+        toast({
+          title: "Trajet publié",
+          description: "Votre trajet a été publié avec succès.",
+        });
 
-      setShowPublishModal(false);
+        setShowPublishModal(false);
+      }
     } catch (error) {
       console.error("Error publishing trip:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de publier le trajet. Veuillez réessayer.",
+        description: error instanceof Error ? error.message : "Impossible de publier le trajet. Veuillez réessayer.",
         variant: "destructive",
       });
     } finally {

@@ -29,7 +29,8 @@ export function NotificationCenter({ userId }: NotificationCenterProps) {
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: [`/api/notifications/user/${userId}`],
-    refetchInterval: 30000,
+    refetchInterval: 60000, // Réduire la fréquence pour éviter la surcharge
+    enabled: !!userId,
   });
 
   const markAsReadMutation = useMutation({
