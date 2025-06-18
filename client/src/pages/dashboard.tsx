@@ -632,6 +632,19 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {user.profile?.role === 'admin' && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                      onClick={() => {
+                        window.location.href = '/admin';
+                      }}
+                    >
+                      <User className="mr-2 w-4 h-4" />
+                      Administration
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
