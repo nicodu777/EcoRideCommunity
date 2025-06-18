@@ -201,10 +201,8 @@ export default function AdminDashboard() {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="employees">Employés</TabsTrigger>
           </TabsList>
-            <TabsTrigger value="employees">Gestion des employés</TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="analytics" className="space-y-6">
+          <TabsContent value="users" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Daily Trips Chart */}
               <Card>
@@ -279,6 +277,58 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Daily Trips Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Nombre de covoiturages par jour</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {tripsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <LoadingSpinner />
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={formatChartData(dailyTrips)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="#10b981" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Daily Earnings Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Revenus de la plateforme par jour</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {earningsLoading ? (
+                    <div className="flex justify-center py-8">
+                      <LoadingSpinner />
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={formatChartData(dailyEarnings)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [`${value}€`, 'Revenus']} />
+                        <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-900">Gestion des utilisateurs</h2>
             </div>
@@ -467,6 +517,7 @@ export default function AdminDashboard() {
               ))}
             </div>
           </TabsContent>
+
         </Tabs>
       </div>
     </div>
