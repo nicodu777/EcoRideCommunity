@@ -9,7 +9,8 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { authService, AuthUser } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, MessageCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SearchResults() {
@@ -184,11 +185,25 @@ export default function SearchResults() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {searchResults.map((trip) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    onBook={handleBookTrip}
-                  />
+                  <div key={trip.id} className="relative">
+                    <TripCard
+                      trip={trip}
+                      onBook={handleBookTrip}
+                    />
+                    {user?.profile && (
+                      <Button
+                        onClick={() => {
+                          setSelectedTripForChat(trip.id);
+                          setShowChatWindow(true);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="absolute top-4 right-4 border-eco-green text-eco-green hover:bg-eco-green hover:text-white"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
             )}
@@ -218,6 +233,19 @@ export default function SearchResults() {
         onConfirm={handleConfirmBooking}
         loading={bookingLoading}
       />
+
+      {/* Chat Window */}
+      {showChatWindow && selectedTripForChat && user?.profile && (
+        <ChatWindow
+          tripId={selectedTripForChat}
+          userId={user.profile.id}
+          isOpen={showChatWindow}
+          onClose={() => {
+            setShowChatWindow(false);
+            setSelectedTripForChat(null);
+          }}
+        />
+      )}
     </div>
   );
 }

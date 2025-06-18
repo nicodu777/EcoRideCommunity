@@ -19,6 +19,7 @@ import { BadgeDisplay } from "@/components/gamification/badge-display";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { AIRecommendations } from "@/components/analytics/ai-recommendations";
 import { MapIntegration } from "@/components/location/map-integration";
+import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 
 export default function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
