@@ -80,20 +80,20 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   if (!isOpen) return null;
 
   return (
-    <Card className="fixed bottom-4 right-4 w-96 h-[500px] z-50 shadow-2xl border-2 border-eco-green">
-      <CardHeader className="pb-3 bg-eco-green text-white rounded-t-lg">
+    <Card className="fixed bottom-4 right-4 w-80 sm:w-96 h-[450px] sm:h-[500px] z-50 shadow-2xl border-2 border-eco-green max-w-[calc(100vw-2rem)]">
+      <CardHeader className="pb-2 pt-3 bg-eco-green text-white rounded-t-lg">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg text-white">
-            <MessageCircle className="w-5 h-5" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-white">
+            <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
             Chat - Trajet #{tripId}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-green-600">
-            ×
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-green-600 h-8 w-8 p-0">
+            <span className="text-lg">×</span>
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0 flex flex-col h-96">
-        <ScrollArea className="flex-1 px-4">
+      <CardContent className="p-0 flex flex-col h-80 sm:h-96">
+        <ScrollArea className="flex-1 px-3 sm:px-4">
           {isLoading ? (
             <div className="flex justify-center py-4">
               <div className="animate-spin w-6 h-6 border-2 border-eco-green border-t-transparent rounded-full" />
@@ -106,7 +106,7 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
                   className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+                    className={`max-w-[85%] sm:max-w-[75%] rounded-2xl px-3 py-2 ${
                       msg.senderId === userId
                         ? "bg-eco-green text-white rounded-br-md"
                         : "bg-slate-100 text-slate-900 rounded-bl-md"
@@ -127,7 +127,7 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
             </div>
           )}
         </ScrollArea>
-        <div className="p-4 border-t">
+        <div className="p-3 sm:p-4 border-t bg-white">
           <div className="flex gap-2">
             <Input
               value={message}
@@ -135,12 +135,13 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
               placeholder="Tapez votre message..."
               onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
               disabled={sendMessageMutation.isPending}
+              className="text-sm"
             />
             <Button
               size="sm"
               onClick={handleSendMessage}
               disabled={!message.trim() || sendMessageMutation.isPending}
-              className="bg-eco-green hover:bg-green-600"
+              className="bg-eco-green hover:bg-green-600 px-3"
             >
               <Send className="w-4 h-4" />
             </Button>
