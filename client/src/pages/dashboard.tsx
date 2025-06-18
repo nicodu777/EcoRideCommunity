@@ -439,8 +439,6 @@ export default function Dashboard() {
                       </div>
                     </CardContent>
                   </Card>
-                    </CardContent>
-                  </Card>
                 ))}
               </div>
             )}
@@ -701,7 +699,6 @@ export default function Dashboard() {
             </div>
           </TabsContent>
         </Tabs>
-      </div>
 
       <PublishModal
         open={showPublishModal}
@@ -726,8 +723,7 @@ export default function Dashboard() {
           }}
         />
       )}
-
-
+      </div>
     </div>
   );
 }
