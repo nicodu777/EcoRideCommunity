@@ -1016,6 +1016,98 @@ export class DatabaseStorage implements IStorage {
       .orderBy(sql`DATE(${trips.createdAt}) DESC`)
       .limit(30);
   }
+
+  async getUserReports(): Promise<any[]> {
+    const query = `
+      SELECT 
+        ur.*,
+        reporter.first_name || ' ' || reporter.last_name as reporter_name,
+        reported.first_name || ' ' || reported.last_name as reported_name,
+        reviewer.first_name || ' ' || reviewer.last_name as reviewer_name
+      FROM user_reports ur
+      LEFT JOIN users reporter ON ur.reporter_id = reporter.id
+      LEFT JOIN users reported ON ur.reported_id = reported.id
+      LEFT JOIN users reviewer ON ur.reviewed_by = reviewer.id
+      ORDER BY ur.created_at DESC
+    `;
+    
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  async createUserReport(report: any): Promise<any> {
+    const insertQuery = `
+      INSERT INTO user_reports (reporter_id, reported_id, reason, description, status, priority)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `;
+    
+    const result = await pool.query(insertQuery, [
+      report.reporterId,
+      report.reportedId,
+      report.reason,
+      report.description,
+      report.status || 'pending',
+      report.priority || 'medium'
+    ]);
+    
+    return result.rows[0];
+  }
+
+  async reviewUserReport(id: number, reviewerId: number, status: string, resolution: string): Promise<any> {
+    const updateQuery = `
+      UPDATE user_reports 
+      SET status = $1, resolution = $2, reviewed_by = $3, reviewed_at = NOW()
+      WHERE id = $4
+      RETURNING *
+    `;
+    
+    const result = await pool.query(updateQuery, [status, resolution, reviewerId, id]);
+    
+    // Log admin action
+    await this.logAdminAction({
+      adminId: reviewerId,
+      action: 'review_report',
+      targetType: 'user_report',
+      targetId: id,
+      details: { status, resolution }
+    });
+    
+    return result.rows[0];
+  }
+
+  async getAdminActions(): Promise<any[]> {
+    const query = `
+      SELECT 
+        aa.*,
+        admin.first_name || ' ' || admin.last_name as admin_name
+      FROM admin_actions aa
+      LEFT JOIN users admin ON aa.admin_id = admin.id
+      ORDER BY aa.created_at DESC
+      LIMIT 100
+    `;
+    
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  async logAdminAction(action: any): Promise<any> {
+    const insertQuery = `
+      INSERT INTO admin_actions (admin_id, action, target_type, target_id, details)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+    
+    const result = await pool.query(insertQuery, [
+      action.adminId,
+      action.action,
+      action.targetType,
+      action.targetId,
+      JSON.stringify(action.details)
+    ]);
+    
+    return result.rows[0];
+  }
 }
 
 export const storage = new DatabaseStorage();

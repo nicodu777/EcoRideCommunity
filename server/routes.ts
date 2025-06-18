@@ -428,6 +428,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User reports and admin actions routes
+  app.get("/api/admin/reports", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== 'admin') {
+      return res.sendStatus(403);
+    }
+    
+    try {
+      const reports = await storage.getUserReports();
+      res.json(reports);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching reports: " + error.message });
+    }
+  });
+
+  app.post("/api/admin/reports/:id/review", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== 'admin') {
+      return res.sendStatus(403);
+    }
+    
+    try {
+      const { id } = req.params;
+      const { status, resolution } = req.body;
+      
+      const report = await storage.reviewUserReport(
+        parseInt(id), 
+        req.user.id, 
+        status, 
+        resolution
+      );
+      
+      res.json(report);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error reviewing report: " + error.message });
+    }
+  });
+
+  app.get("/api/admin/actions", async (req, res) => {
+    if (!req.isAuthenticated() || req.user.role !== 'admin') {
+      return res.sendStatus(403);
+    }
+    
+    try {
+      const actions = await storage.getAdminActions();
+      res.json(actions);
+    } catch (error: any) {
+      res.status(500).json({ message: "Error fetching admin actions: " + error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
