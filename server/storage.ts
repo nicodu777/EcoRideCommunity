@@ -52,6 +52,15 @@ export interface IStorage {
   
   // Analytics operations
   getDailyTripCounts(): Promise<{ date: string; count: number }[]>;
+  
+  // User reports operations
+  getUserReports(): Promise<any[]>;
+  createUserReport(report: any): Promise<any>;
+  reviewUserReport(id: number, reviewerId: number, status: string, resolution: string): Promise<any>;
+  
+  // Admin actions operations
+  getAdminActions(): Promise<any[]>;
+  logAdminAction(action: any): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
