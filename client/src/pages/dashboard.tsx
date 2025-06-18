@@ -292,33 +292,7 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        {/* Chat Demo Button - Prominently displayed */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-eco-green to-green-600 rounded-lg text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-1">Chat en temps réel disponible</h3>
-              <p className="text-green-100">Communiquez instantanément avec les conducteurs et passagers</p>
-            </div>
-            <Button
-              onClick={() => {
-                const firstTrip = myTrips[0] || (myBookings[0]?.trip);
-                if (firstTrip) {
-                  setSelectedTripForChat(firstTrip.id);
-                  setShowChatWindow(true);
-                } else {
-                  toast({
-                    title: "Chat de démonstration",
-                    description: "Créez d'abord un trajet ou réservez-en un pour utiliser le chat",
-                  });
-                }
-              }}
-              className="bg-white text-eco-green hover:bg-gray-100"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Tester le chat
-            </Button>
-          </div>
-        </div>
+
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">

@@ -36,7 +36,7 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/trip/${tripId}`],
     enabled: isOpen && !!tripId,
-    refetchInterval: 5000, // Réduire la fréquence des requêtes
+    refetchInterval: 3000, // Refresh every 3 seconds
   });
 
   const sendMessageMutation = useMutation({
@@ -44,8 +44,11 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
       return apiRequest("POST", "/api/chat/messages", newMessage);
     },
     onSuccess: () => {
-      setMessage("");
       queryClient.invalidateQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
+      // Scroll to bottom after new message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
     },
     onError: () => {
       toast({
