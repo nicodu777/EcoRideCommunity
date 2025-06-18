@@ -15,7 +15,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ReportsManagement } from "@/components/admin/reports-management";
+// import { ReportsManagement } from "@/components/admin/reports-management";
 
 interface AnalyticsData {
   date: string;
@@ -194,10 +194,13 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="analytics" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="analytics">Analyses</TabsTrigger>
-            <TabsTrigger value="users">Gestion des utilisateurs</TabsTrigger>
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="reports">Signalements</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="employees">Employés</TabsTrigger>
+          </TabsList>
             <TabsTrigger value="employees">Gestion des employés</TabsTrigger>
           </TabsList>
 
@@ -253,7 +256,29 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-6">
+          <TabsContent value="reports" className="space-y-6">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-slate-900">Gestion des signalements</h2>
+                <div className="flex items-center space-x-2 text-sm text-slate-600">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Aucun signalement en attente</span>
+                </div>
+              </div>
+              
+              <Card>
+                <CardContent className="p-6 text-center">
+                  <AlertTriangle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-600">Aucun signalement pour le moment</p>
+                  <p className="text-sm text-slate-500 mt-2">
+                    Les signalements d'utilisateurs apparaîtront ici pour modération
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-slate-900">Gestion des utilisateurs</h2>
             </div>

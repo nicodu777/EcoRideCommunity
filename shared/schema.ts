@@ -219,7 +219,7 @@ export const adminActions = pgTable("admin_actions", {
   action: text("action").notNull(),
   targetType: text("target_type").notNull(),
   targetId: integer("target_id").notNull(),
-  details: json("details"),
+  details: text("details"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
