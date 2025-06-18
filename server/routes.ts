@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema } from "@shared/schema";
 import { z } from "zod";
+import { wsManager } from "./websocket";
 
 const searchTripSchema = z.object({
   departure: z.string().min(1),

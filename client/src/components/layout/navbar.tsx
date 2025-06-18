@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Leaf, Search, Car, Calendar, User, LogOut } from "lucide-react";
+import { NotificationCenter } from "@/components/notifications/notification-center";
 
 export function Navbar() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -77,6 +78,9 @@ export function Navbar() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
+            {user?.profile && (
+              <NotificationCenter userId={user.profile.id} />
+            )}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

@@ -24,6 +24,8 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('trips');
+  const [showChatWindow, setShowChatWindow] = useState(false);
+  const [selectedTripForChat, setSelectedTripForChat] = useState<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((user) => {
@@ -277,9 +279,10 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="trips">Mes trajets</TabsTrigger>
             <TabsTrigger value="bookings">Mes réservations</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
           </TabsList>
 
@@ -466,11 +469,36 @@ export default function Dashboard() {
             )}
           </TabsContent>
 
+          <TabsContent value="analytics" className="space-y-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-6">Analytics & Recommandations</h2>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {user?.profile && (
+                <AIRecommendations 
+                  userId={user.profile.id} 
+                  userRole={user.profile.role} 
+                />
+              )}
+              
+              <MapIntegration 
+                showCurrentLocation={true}
+                departure={{
+                  latitude: 48.8566,
+                  longitude: 2.3522,
+                  address: "Paris, France"
+                }}
+                destination={{
+                  latitude: 45.7640,
+                  longitude: 4.8357,
+                  address: "Lyon, France"
+                }}
+              />
+            </div>
+          </TabsContent>
+
           <TabsContent value="profile" className="space-y-6">
             <div className="max-w-2xl">
               <h2 className="text-xl font-bold text-slate-900 mb-6">Mon profil</h2>
-              {/* Debug info */}
-              {console.log('Profile tab rendering, user:', user, 'profile:', user?.profile)}
               
               <Card>
                 <CardHeader>
