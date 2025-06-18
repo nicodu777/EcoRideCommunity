@@ -16,6 +16,18 @@ export const users = pgTable("users", {
   credits: decimal("credits", { precision: 10, scale: 2 }).notNull().default("0.00"),
   isVerified: boolean("is_verified").notNull().default(false),
   isSuspended: boolean("is_suspended").notNull().default(false),
+  // Stripe integration
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  // Profile enhancements
+  bio: text("bio"),
+  profilePicture: text("profile_picture"),
+  // Gamification
+  ecoPoints: integer("eco_points").notNull().default(0),
+  badgeIds: text("badge_ids").array().notNull().default([]),
+  // Preferences
+  preferences: text("preferences"), // JSON string for user preferences
+  lastActiveAt: timestamp("last_active_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -34,6 +46,19 @@ export const trips = pgTable("trips", {
   status: text("status").notNull().default("pending"), // "pending" | "started" | "completed" | "cancelled"
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
+  // Enhanced location data
+  departureCoordinates: text("departure_coordinates"), // JSON: {lat, lng}
+  destinationCoordinates: text("destination_coordinates"), // JSON: {lat, lng}
+  pickupPoints: text("pickup_points").array().default([]), // Array of pickup point descriptions
+  // Recurring trips
+  isRecurring: boolean("is_recurring").notNull().default(false),
+  recurringDays: text("recurring_days").array().default([]), // ["monday", "tuesday", etc.]
+  // Weather and preferences
+  preferences: text("preferences"), // JSON: smoking, music, etc.
+  weatherConditions: text("weather_conditions"),
+  // AI predictions
+  predictedPrice: decimal("predicted_price", { precision: 10, scale: 2 }),
+  demandScore: integer("demand_score"), // 1-100
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -82,7 +107,141 @@ export const platformEarnings = pgTable("platform_earnings", {
   date: timestamp("date").notNull().defaultNow(),
 });
 
+// Chat messages for real-time communication
+export const chatMessages = pgTable("chat_messages", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull(),
+  senderId: integer("sender_id").notNull(),
+  message: text("message").notNull(),
+  messageType: text("message_type").notNull().default("text"), // "text" | "system" | "location"
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Notifications system
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // "trip_update" | "booking" | "payment" | "system"
+  isRead: boolean("is_read").notNull().default(false),
+  actionUrl: text("action_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// User friends/contacts system
+export const userFriends = pgTable("user_friends", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  friendId: integer("friend_id").notNull(),
+  status: text("status").notNull().default("pending"), // "pending" | "accepted" | "blocked"
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Gamification badges
+export const badges = pgTable("badges", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  condition: text("condition").notNull(), // JSON describing how to earn this badge
+  points: integer("points").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// User achievements/badges earned
+export const userBadges = pgTable("user_badges", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  badgeId: integer("badge_id").notNull(),
+  earnedAt: timestamp("earned_at").notNull().defaultNow(),
+});
+
+// Recurring trip schedules
+export const recurringTrips = pgTable("recurring_trips", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  departure: text("departure").notNull(),
+  destination: text("destination").notNull(),
+  departureTime: text("departure_time").notNull(), // Time in HH:mm format
+  daysOfWeek: text("days_of_week").array().notNull(), // ["monday", "tuesday", etc.]
+  isActive: boolean("is_active").notNull().default(true),
+  lastCreatedAt: timestamp("last_created_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Payment transactions
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  bookingId: integer("booking_id").notNull(),
+  userId: integer("user_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("EUR"),
+  status: text("status").notNull(), // "pending" | "completed" | "failed" | "refunded"
+  stripePaymentIntentId: text("stripe_payment_intent_id"),
+  metadata: text("metadata"), // JSON for additional payment info
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Analytics data for AI predictions
+export const tripAnalytics = pgTable("trip_analytics", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull(),
+  viewCount: integer("view_count").notNull().default(0),
+  bookingAttempts: integer("booking_attempts").notNull().default(0),
+  conversionRate: decimal("conversion_rate", { precision: 5, scale: 4 }),
+  avgResponseTime: integer("avg_response_time"), // in minutes
+  popularityScore: integer("popularity_score"), // 1-100
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas
+// Additional insert schemas for new tables
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
+  id: true,
+  isRead: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  isRead: true,
+  createdAt: true,
+});
+
+export const insertUserFriendSchema = createInsertSchema(userFriends).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBadgeSchema = createInsertSchema(badges).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
+  id: true,
+  earnedAt: true,
+});
+
+export const insertRecurringTripSchema = createInsertSchema(recurringTrips).omit({
+  id: true,
+  lastCreatedAt: true,
+  createdAt: true,
+});
+
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTripAnalyticsSchema = createInsertSchema(tripAnalytics).omit({
+  id: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   averageRating: true,
@@ -90,6 +249,9 @@ export const insertUserSchema = createInsertSchema(users).omit({
   credits: true,
   isVerified: true,
   isSuspended: true,
+  ecoPoints: true,
+  badgeIds: true,
+  lastActiveAt: true,
   createdAt: true,
 });
 
@@ -99,6 +261,15 @@ export const insertTripSchema = createInsertSchema(trips).omit({
   status: true,
   startedAt: true,
   completedAt: true,
+  isRecurring: true,
+  recurringDays: true,
+  departureCoordinates: true,
+  destinationCoordinates: true,
+  pickupPoints: true,
+  preferences: true,
+  weatherConditions: true,
+  predictedPrice: true,
+  demandScore: true,
   createdAt: true,
 });
 
@@ -139,6 +310,13 @@ export const usersRelations = relations(users, ({ many }) => ({
   issuesReported: many(tripIssues, { relationName: "reporter" }),
   ratingsReviewed: many(ratings, { relationName: "reviewer" }),
   issuesHandled: many(tripIssues, { relationName: "handler" }),
+  sentMessages: many(chatMessages, { relationName: "sender" }),
+  notifications: many(notifications),
+  friendsInitiated: many(userFriends, { relationName: "user" }),
+  friendsReceived: many(userFriends, { relationName: "friend" }),
+  badges: many(userBadges),
+  recurringTrips: many(recurringTrips),
+  payments: many(payments),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
@@ -150,6 +328,8 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   ratings: many(ratings),
   issues: many(tripIssues),
   earnings: many(platformEarnings),
+  chatMessages: many(chatMessages),
+  analytics: one(tripAnalytics),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
@@ -203,13 +383,6 @@ export const tripIssuesRelations = relations(tripIssues, ({ one }) => ({
   }),
 }));
 
-export const platformEarningsRelations = relations(platformEarnings, ({ one }) => ({
-  trip: one(trips, {
-    fields: [platformEarnings.tripId],
-    references: [trips.id],
-  }),
-}));
-
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -223,6 +396,24 @@ export type TripIssue = typeof tripIssues.$inferSelect;
 export type InsertTripIssue = z.infer<typeof insertTripIssueSchema>;
 export type PlatformEarnings = typeof platformEarnings.$inferSelect;
 export type InsertPlatformEarnings = z.infer<typeof insertPlatformEarningsSchema>;
+
+// New types for additional tables
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type UserFriend = typeof userFriends.$inferSelect;
+export type InsertUserFriend = z.infer<typeof insertUserFriendSchema>;
+export type Badge = typeof badges.$inferSelect;
+export type InsertBadge = z.infer<typeof insertBadgeSchema>;
+export type UserBadge = typeof userBadges.$inferSelect;
+export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
+export type RecurringTrip = typeof recurringTrips.$inferSelect;
+export type InsertRecurringTrip = z.infer<typeof insertRecurringTripSchema>;
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type TripAnalytics = typeof tripAnalytics.$inferSelect;
+export type InsertTripAnalytics = z.infer<typeof insertTripAnalyticsSchema>;
 
 // Extended types for API responses
 export type TripWithDriver = Trip & {
