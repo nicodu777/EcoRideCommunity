@@ -62,10 +62,13 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
+    const messageToSend = message.trim();
+    setMessage(""); // Clear input immediately
+
     sendMessageMutation.mutate({
       tripId,
       senderId: userId,
-      message: message.trim(),
+      message: messageToSend,
       messageType: "text",
     });
   };
@@ -77,39 +80,39 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   if (!isOpen) return null;
 
   return (
-    <Card className="fixed bottom-4 right-4 w-80 h-96 z-50 shadow-lg">
-      <CardHeader className="pb-3">
+    <Card className="fixed bottom-4 right-4 w-96 h-[500px] z-50 shadow-2xl border-2 border-eco-green">
+      <CardHeader className="pb-3 bg-eco-green text-white rounded-t-lg">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <MessageCircle className="w-5 h-5 text-eco-green" />
-            Chat du trajet
+          <CardTitle className="flex items-center gap-2 text-lg text-white">
+            <MessageCircle className="w-5 h-5" />
+            Chat - Trajet #{tripId}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:bg-green-600">
             ×
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="p-0 flex flex-col h-72">
+      <CardContent className="p-0 flex flex-col h-96">
         <ScrollArea className="flex-1 px-4">
           {isLoading ? (
             <div className="flex justify-center py-4">
               <div className="animate-spin w-6 h-6 border-2 border-eco-green border-t-transparent rounded-full" />
             </div>
           ) : (
-            <div className="space-y-3 py-2">
+            <div className="space-y-4 py-2">
               {messages.map((msg) => (
                 <div
-                  key={msg.id}
+                  key={`${msg.id}-${msg.createdAt}`}
                   className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg px-3 py-2 ${
+                    className={`max-w-[75%] rounded-2xl px-4 py-2 ${
                       msg.senderId === userId
-                        ? "bg-eco-green text-white"
-                        : "bg-slate-100 text-slate-900"
+                        ? "bg-eco-green text-white rounded-br-md"
+                        : "bg-slate-100 text-slate-900 rounded-bl-md"
                     }`}
                   >
-                    <div className="text-sm">{msg.message}</div>
+                    <div className="text-sm leading-relaxed break-words">{msg.message}</div>
                     <div
                       className={`text-xs mt-1 ${
                         msg.senderId === userId ? "text-green-100" : "text-slate-500"
