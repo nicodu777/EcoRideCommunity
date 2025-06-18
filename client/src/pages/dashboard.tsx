@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Car, Calendar, User, Star, Settings, LogOut } from "lucide-react";
+import { Plus, Car, Calendar, User, Star, Settings, LogOut, MessageCircle } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -292,6 +292,34 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
+        {/* Chat Demo Button - Prominently displayed */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-eco-green to-green-600 rounded-lg text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold mb-1">Chat en temps réel disponible</h3>
+              <p className="text-green-100">Communiquez instantanément avec les conducteurs et passagers</p>
+            </div>
+            <Button
+              onClick={() => {
+                const firstTrip = myTrips[0] || (myBookings[0]?.trip);
+                if (firstTrip) {
+                  setSelectedTripForChat(firstTrip.id);
+                  setShowChatWindow(true);
+                } else {
+                  toast({
+                    title: "Chat de démonstration",
+                    description: "Créez d'abord un trajet ou réservez-en un pour utiliser le chat",
+                  });
+                }
+              }}
+              className="bg-white text-eco-green hover:bg-gray-100"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Tester le chat
+            </Button>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="trips">Mes trajets</TabsTrigger>
@@ -372,11 +400,24 @@ export default function Dashboard() {
                       
                       {/* Trip Management Buttons */}
                       <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setSelectedTripForChat(trip.id);
+                            setShowChatWindow(true);
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="border-eco-green text-eco-green hover:bg-eco-green hover:text-white"
+                        >
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          Chat
+                        </Button>
+                        
                         {((trip as any).status === 'pending' || !(trip as any).status) && (
                           <Button
                             size="sm"
                             onClick={() => handleStartTrip(trip.id)}
-                            className="flex-1 bg-green-600 hover:bg-green-700"
+                            className="bg-green-600 hover:bg-green-700"
                           >
                             Démarrer
                           </Button>
@@ -385,9 +426,9 @@ export default function Dashboard() {
                           <Button
                             size="sm"
                             onClick={() => handleCompleteTrip(trip.id)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                            className="bg-blue-600 hover:bg-blue-700"
                           >
-                            Arrivée à destination
+                            Terminer
                           </Button>
                         )}
                         {(trip as any).status === 'completed' && (
@@ -396,6 +437,8 @@ export default function Dashboard() {
                           </Badge>
                         )}
                       </div>
+                    </CardContent>
+                  </Card>
                     </CardContent>
                   </Card>
                 ))}
@@ -463,17 +506,32 @@ export default function Dashboard() {
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-slate-200">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm text-slate-600">Conducteur:</span>
-                          <span className="text-sm font-medium text-slate-900">
-                            {booking.trip.driver.firstName} {booking.trip.driver.lastName}
-                          </span>
-                          <div className="flex items-center space-x-1">
-                            <Star className="text-yellow-400" size={14} />
-                            <span className="text-sm text-slate-600">
-                              {booking.trip.driver.averageRating && booking.trip.driver.averageRating !== null ? parseFloat(booking.trip.driver.averageRating).toFixed(1) : '0.0'}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-slate-600">Conducteur:</span>
+                            <span className="text-sm font-medium text-slate-900">
+                              {booking.trip.driver.firstName} {booking.trip.driver.lastName}
                             </span>
+                            <div className="flex items-center space-x-1">
+                              <Star className="text-yellow-400" size={14} />
+                              <span className="text-sm text-slate-600">
+                                {booking.trip.driver.averageRating && booking.trip.driver.averageRating !== null ? parseFloat(booking.trip.driver.averageRating).toFixed(1) : '0.0'}
+                              </span>
+                            </div>
                           </div>
+                          
+                          <Button
+                            onClick={() => {
+                              setSelectedTripForChat(booking.trip.id);
+                              setShowChatWindow(true);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="border-eco-green text-eco-green hover:bg-eco-green hover:text-white"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            Chat
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -668,6 +726,8 @@ export default function Dashboard() {
           }}
         />
       )}
+
+
     </div>
   );
 }
