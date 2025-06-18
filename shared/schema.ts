@@ -27,7 +27,7 @@ export const users = pgTable("users", {
   badgeIds: text("badge_ids").array().notNull().default([]),
   // Preferences
   preferences: text("preferences"), // JSON string for user preferences
-  lastActiveAt: timestamp("last_active_at"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -251,7 +251,6 @@ export const insertUserSchema = createInsertSchema(users).omit({
   isSuspended: true,
   ecoPoints: true,
   badgeIds: true,
-  lastActiveAt: true,
   createdAt: true,
 });
 
