@@ -15,6 +15,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { BadgeDisplay } from "@/components/gamification/badge-display";
+import { ChatWindow } from "@/components/chat/chat-window";
+import { AIRecommendations } from "@/components/analytics/ai-recommendations";
+import { MapIntegration } from "@/components/location/map-integration";
 
 export default function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
@@ -508,6 +512,11 @@ export default function Dashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <BadgeDisplay 
+                    userId={user.profile?.id || 0} 
+                    ecoPoints={user.profile?.ecoPoints || 0} 
+                    compact={true} 
+                  />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-slate-700">Prénom</label>
@@ -632,6 +641,19 @@ export default function Dashboard() {
         onPublish={handlePublishTrip}
         loading={publishLoading}
       />
+
+      {/* Chat Window */}
+      {showChatWindow && selectedTripForChat && user?.profile && (
+        <ChatWindow
+          tripId={selectedTripForChat}
+          userId={user.profile.id}
+          isOpen={showChatWindow}
+          onClose={() => {
+            setShowChatWindow(false);
+            setSelectedTripForChat(null);
+          }}
+        />
+      )}
     </div>
   );
 }

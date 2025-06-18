@@ -96,21 +96,21 @@ class WebSocketManager {
   }
 
   broadcastToTrip(tripId: number, message: any, excludeUserId?: number) {
-    for (const [clientId, client] of this.clients) {
+    this.clients.forEach((client, clientId) => {
       if (client.tripId === tripId && 
           client.userId !== excludeUserId && 
           client.ws.readyState === WebSocket.OPEN) {
         client.ws.send(JSON.stringify(message));
       }
-    }
+    });
   }
 
   sendToUser(userId: number, message: any) {
-    for (const [clientId, client] of this.clients) {
+    this.clients.forEach((client, clientId) => {
       if (client.userId === userId && client.ws.readyState === WebSocket.OPEN) {
         client.ws.send(JSON.stringify(message));
       }
-    }
+    });
   }
 
   broadcastNotification(userId: number, notification: any) {
