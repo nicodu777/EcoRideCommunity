@@ -255,7 +255,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
-export const insertTripSchema = createInsertSchema(trips).omit({
+export const insertTripSchemaEnhanced = createInsertSchema(trips).omit({
   id: true,
   isActive: true,
   status: true,
@@ -271,6 +271,19 @@ export const insertTripSchema = createInsertSchema(trips).omit({
   predictedPrice: true,
   demandScore: true,
   createdAt: true,
+});
+
+// Export the original simpler version for backward compatibility
+export const insertTripSchema = insertTripSchemaEnhanced.pick({
+  driverId: true,
+  departure: true,
+  destination: true,
+  departureTime: true,
+  arrivalTime: true,
+  availableSeats: true,
+  totalSeats: true,
+  pricePerSeat: true,
+  description: true,
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({
