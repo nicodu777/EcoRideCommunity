@@ -4,6 +4,7 @@ import { TripWithDriver } from "@shared/schema";
 import { SearchForm } from "@/components/trip/search-form";
 import { TripCard } from "@/components/trip/trip-card";
 import { BookingModal } from "@/components/trip/booking-modal";
+import { ChatWindow } from "@/components/chat/chat-window";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { authService, AuthUser } from "@/lib/auth";
@@ -15,6 +16,8 @@ export default function SearchResults() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [selectedTrip, setSelectedTrip] = useState<TripWithDriver | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showChatWindow, setShowChatWindow] = useState(false);
+  const [selectedTripForChat, setSelectedTripForChat] = useState<number | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [searchParams, setSearchParams] = useState({
     departure: "",
