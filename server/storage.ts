@@ -61,6 +61,9 @@ export interface IStorage {
   // Admin actions operations
   getAdminActions(): Promise<any[]>;
   logAdminAction(action: any): Promise<any>;
+  
+  // Message operations
+  getMessagesByTrip(tripId: number): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {

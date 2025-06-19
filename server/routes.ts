@@ -477,6 +477,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Chat routes pour les conversations
+  app.get("/api/chat/conversations/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Récupérer tous les trajets où l'utilisateur est impliqué (conducteur ou passager)
+      const userBookings = await storage.getBookingsByPassenger(userId);
+      const userTrips = await storage.getTripsByDriver(userId);
+      
+      const conversations = [];
+      
+      // Conversations basées sur les réservations (utilisateur = passager)
+      for (const booking of userBookings) {
+        const trip = await storage.getTripWithDriver(booking.tripId);
+        if (trip) {
+          // Récupérer le dernier message pour ce trajet
+          const messages = await storage.getMessagesByTrip(booking.tripId);
+          const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+          
+          // Compter les messages non lus
+          const unreadCount = messages.filter(msg => 
+            msg.senderId !== userId && !msg.isRead
+          ).length;
+          
+          conversations.push({
+            tripId: booking.tripId,
+            tripInfo: {
+              departure: trip.departure,
+              destination: trip.destination,
+              departureTime: trip.departureTime,
+              driverName: `${trip.driver.firstName} ${trip.driver.lastName}`
+            },
+            lastMessage: lastMessage ? {
+              message: lastMessage.message,
+              senderName: lastMessage.senderId === userId ? "Vous" : `${trip.driver.firstName} ${trip.driver.lastName}`,
+              createdAt: lastMessage.createdAt
+            } : null,
+            unreadCount
+          });
+        }
+      }
+      
+      // Conversations basées sur les trajets (utilisateur = conducteur)
+      for (const trip of userTrips) {
+        const bookings = await storage.getBookingsByTrip(trip.id);
+        if (bookings.length > 0) {
+          // Récupérer le dernier message pour ce trajet
+          const messages = await storage.getMessagesByTrip(trip.id);
+          const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+          
+          // Compter les messages non lus
+          const unreadCount = messages.filter(msg => 
+            msg.senderId !== userId && !msg.isRead
+          ).length;
+          
+          // Obtenir le nom du premier passager pour l'affichage
+          const firstBooking = bookings[0];
+          const passenger = await storage.getUser(firstBooking.passengerId);
+          
+          conversations.push({
+            tripId: trip.id,
+            tripInfo: {
+              departure: trip.departure,
+              destination: trip.destination,
+              departureTime: trip.departureTime,
+              driverName: passenger ? `${passenger.firstName} ${passenger.lastName}` : "Passager"
+            },
+            lastMessage: lastMessage ? {
+              message: lastMessage.message,
+              senderName: lastMessage.senderId === userId ? "Vous" : (passenger ? `${passenger.firstName} ${passenger.lastName}` : "Passager"),
+              createdAt: lastMessage.createdAt
+            } : null,
+            unreadCount
+          });
+        }
+      }
+      
+      // Trier par date du dernier message (plus récent en premier)
+      conversations.sort((a, b) => {
+        if (!a.lastMessage && !b.lastMessage) return 0;
+        if (!a.lastMessage) return 1;
+        if (!b.lastMessage) return -1;
+        return new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime();
+      });
+      
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/chat/unread-count/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Récupérer tous les trajets où l'utilisateur est impliqué
+      const userBookings = await storage.getBookingsByPassenger(userId);
+      const userTrips = await storage.getTripsByDriver(userId);
+      
+      let totalUnread = 0;
+      
+      // Compter les messages non lus dans les trajets où l'utilisateur est passager
+      for (const booking of userBookings) {
+        const messages = await storage.getMessagesByTrip(booking.tripId);
+        totalUnread += messages.filter(msg => 
+          msg.senderId !== userId && !msg.isRead
+        ).length;
+      }
+      
+      // Compter les messages non lus dans les trajets où l'utilisateur est conducteur
+      for (const trip of userTrips) {
+        const messages = await storage.getMessagesByTrip(trip.id);
+        totalUnread += messages.filter(msg => 
+          msg.senderId !== userId && !msg.isRead
+        ).length;
+      }
+      
+      res.json(totalUnread);
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
+  wsManager.init(httpServer);
   return httpServer;
 }
