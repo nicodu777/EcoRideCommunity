@@ -310,12 +310,7 @@ export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit
   updatedAt: true,
 });
 
-export const insertEmployeeSchema = createInsertSchema(employees).omit({
-  id: true,
-  lastLoginAt: true,
-  createdAt: true,
-  updatedAt: true,
-});
+// Supprimé - défini plus bas avec les extensions
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

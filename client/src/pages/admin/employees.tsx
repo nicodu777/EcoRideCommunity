@@ -39,6 +39,7 @@ const AVAILABLE_PERMISSIONS = [
 
 export default function EmployeesPage() {
   const { user } = useAuth();
+  const userId = user?.profile?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -56,9 +57,10 @@ export default function EmployeesPage() {
     queryKey: ['/api/admin/employees'],
     queryFn: () => apiRequest('/api/admin/employees', {
       headers: {
-        'x-user-id': user?.id?.toString() || '',
+        'x-user-id': userId?.toString() || '',
       },
     }),
+    enabled: !!userId && user?.profile?.role === 'admin',
   });
 
   const createEmployeeMutation = useMutation({
@@ -66,7 +68,7 @@ export default function EmployeesPage() {
       apiRequest('/api/admin/employees', {
         method: 'POST',
         headers: {
-          'x-user-id': user?.id?.toString() || '',
+          'x-user-id': userId?.toString() || '',
         },
         body: JSON.stringify(data),
       }),
@@ -101,7 +103,7 @@ export default function EmployeesPage() {
       apiRequest(`/api/admin/employees/${employeeId}/deactivate`, {
         method: 'PATCH',
         headers: {
-          'x-user-id': user?.id?.toString() || '',
+          'x-user-id': userId?.toString() || '',
         },
       }),
     onSuccess: () => {
@@ -142,7 +144,7 @@ export default function EmployeesPage() {
     }));
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.profile?.role !== 'admin') {
     return (
       <div className="container mx-auto p-6">
         <Card>
