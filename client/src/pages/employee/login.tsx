@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,7 @@ export default function EmployeeLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
@@ -46,7 +46,7 @@ export default function EmployeeLogin() {
       });
       
       // Rediriger vers le tableau de bord employé
-      navigate('/employee/dashboard');
+      setLocation('/employee/dashboard');
     },
     onError: (error: any) => {
       toast({
@@ -152,7 +152,7 @@ export default function EmployeeLogin() {
             <p className="text-sm text-gray-600">
               Vous êtes un utilisateur ?{" "}
               <button
-                onClick={() => navigate('/')}
+                onClick={() => setLocation('/')}
                 className="text-eco-green hover:text-green-600 font-medium"
               >
                 Retour à l'application

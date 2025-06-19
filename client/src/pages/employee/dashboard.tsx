@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,14 @@ interface Employee {
 export default function EmployeeDashboard() {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
     const employeeData = localStorage.getItem('employee_data');
     const employeeToken = localStorage.getItem('employee_token');
     
     if (!employeeData || !employeeToken) {
-      navigate('/employee/login');
+      setLocation('/employee/login');
       return;
     }
     
@@ -78,7 +78,7 @@ export default function EmployeeDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('employee_token');
     localStorage.removeItem('employee_data');
-    navigate('/employee/login');
+    setLocation('/employee/login');
   };
 
   if (!employee) {
