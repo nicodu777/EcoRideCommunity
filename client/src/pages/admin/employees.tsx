@@ -30,6 +30,17 @@ interface Employee {
   updatedAt: string;
 }
 
+interface NewEmployee {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  position: string;
+  permissions: string[];
+}
+}
+
 const AVAILABLE_PERMISSIONS = [
   { value: 'user_reports', label: 'Signalements utilisateurs' },
   { value: 'trip_issues', label: 'Problèmes de trajets' },

@@ -195,8 +195,9 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+            <TabsTrigger value="employees">Employés</TabsTrigger>
             <TabsTrigger value="reports">Signalements</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="employees">Employés</TabsTrigger>
