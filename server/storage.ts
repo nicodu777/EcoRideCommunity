@@ -1179,6 +1179,116 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+
+  // Employee operations
+  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+    try {
+      const [employee] = await db
+        .insert(employees)
+        .values({
+          ...insertEmployee,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      return employee;
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      throw new Error("Failed to create employee");
+    }
+  }
+
+  async getEmployee(id: number): Promise<Employee | undefined> {
+    try {
+      const [employee] = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.id, id));
+      
+      return employee || undefined;
+    } catch (error) {
+      console.error("Error fetching employee:", error);
+      return undefined;
+    }
+  }
+
+  async getEmployeeByEmail(email: string): Promise<Employee | undefined> {
+    try {
+      const [employee] = await db
+        .select()
+        .from(employees)
+        .where(eq(employees.email, email));
+      
+      return employee || undefined;
+    } catch (error) {
+      console.error("Error fetching employee by email:", error);
+      return undefined;
+    }
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    try {
+      const employeesList = await db
+        .select()
+        .from(employees)
+        .orderBy(desc(employees.createdAt));
+      
+      return employeesList;
+    } catch (error) {
+      console.error("Error fetching all employees:", error);
+      return [];
+    }
+  }
+
+  async updateEmployee(id: number, updates: Partial<Employee>): Promise<Employee | undefined> {
+    try {
+      const [employee] = await db
+        .update(employees)
+        .set({
+          ...updates,
+          updatedAt: new Date()
+        })
+        .where(eq(employees.id, id))
+        .returning();
+      
+      return employee || undefined;
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      throw new Error("Failed to update employee");
+    }
+  }
+
+  async deactivateEmployee(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .update(employees)
+        .set({
+          isActive: false,
+          updatedAt: new Date()
+        })
+        .where(eq(employees.id, id));
+      
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error("Error deactivating employee:", error);
+      return false;
+    }
+  }
+
+  async updateEmployeeLastLogin(id: number): Promise<void> {
+    try {
+      await db
+        .update(employees)
+        .set({
+          lastLoginAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(employees.id, id));
+    } catch (error) {
+      console.error("Error updating employee last login:", error);
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();
