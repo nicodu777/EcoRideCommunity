@@ -83,7 +83,10 @@ export default function EmployeesManagement() {
   // Create employee mutation
   const createEmployeeMutation = useMutation({
     mutationFn: async (employeeData: NewEmployee) => {
-      return apiRequest('/api/admin/employees', {
+      console.log('Creating employee with data:', employeeData);
+      console.log('User ID:', user?.id);
+      
+      const response = await fetch('/api/admin/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,6 +94,14 @@ export default function EmployeesManagement() {
         },
         body: JSON.stringify(employeeData)
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`${response.status}: ${errorText}`);
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
