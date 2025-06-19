@@ -1,4 +1,4 @@
-import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMessages, userReports, adminActions, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "@shared/schema";
+import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMessages, userReports, adminActions, employees, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type Employee, type InsertEmployee, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, like, sql, desc, count, gte, asc } from "drizzle-orm";
 import { pool } from "./db";

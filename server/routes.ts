@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema, insertChatMessageSchema } from "@shared/schema";
+import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema, insertChatMessageSchema, insertEmployeeSchema } from "@shared/schema";
 import { z } from "zod";
 import { wsManager } from "./websocket";
+import { hashPassword, verifyPassword, generateEmployeeToken, employeeAuth, hasPermission } from "./employeeAuth";
 
 const searchTripSchema = z.object({
   departure: z.string().min(1),
@@ -629,6 +630,273 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching unread count:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Routes pour les employés
+  
+  // Connexion employé
+  app.post("/api/employee/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email et mot de passe requis" });
+      }
+
+      const employee = await storage.getEmployeeByEmail(email);
+      if (!employee || !employee.isActive) {
+        return res.status(401).json({ message: "Identifiants invalides" });
+      }
+
+      const isValidPassword = await verifyPassword(password, employee.password);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Identifiants invalides" });
+      }
+
+      // Mettre à jour la dernière connexion
+      await storage.updateEmployeeLastLogin(employee.id);
+
+      const token = generateEmployeeToken(employee.id);
+      
+      // Ne pas renvoyer le mot de passe
+      const { password: _, ...employeeData } = employee;
+      
+      res.json({
+        token,
+        employee: employeeData
+      });
+    } catch (error) {
+      console.error("Erreur de connexion employé:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Routes admin pour gérer les employés
+  app.post("/api/admin/employees", async (req, res) => {
+    try {
+      // Vérifier que c'est un admin qui fait la demande
+      const userId = req.headers['x-user-id'];
+      if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+      }
+
+      const user = await storage.getUser(parseInt(userId as string));
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Accès refusé - Admin requis" });
+      }
+
+      const employeeData = insertEmployeeSchema.parse(req.body);
+      
+      // Vérifier que l'email n'existe pas déjà
+      const existingEmployee = await storage.getEmployeeByEmail(employeeData.email);
+      if (existingEmployee) {
+        return res.status(400).json({ message: "Un employé avec cet email existe déjà" });
+      }
+
+      // Hacher le mot de passe
+      const hashedPassword = await hashPassword(employeeData.password);
+      
+      const employee = await storage.createEmployee({
+        ...employeeData,
+        password: hashedPassword,
+        createdBy: user.id
+      });
+
+      // Ne pas renvoyer le mot de passe
+      const { password: _, ...employeeResponse } = employee;
+      
+      res.status(201).json(employeeResponse);
+    } catch (error) {
+      console.error("Erreur création employé:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Données invalides",
+          errors: error.errors
+        });
+      }
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Lister tous les employés (admin uniquement)
+  app.get("/api/admin/employees", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'];
+      if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+      }
+
+      const user = await storage.getUser(parseInt(userId as string));
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Accès refusé - Admin requis" });
+      }
+
+      const employees = await storage.getAllEmployees();
+      
+      // Ne pas renvoyer les mots de passe
+      const employeesResponse = employees.map(({ password, ...employee }) => employee);
+      
+      res.json(employeesResponse);
+    } catch (error) {
+      console.error("Erreur récupération employés:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Désactiver un employé (admin uniquement)
+  app.patch("/api/admin/employees/:id/deactivate", async (req, res) => {
+    try {
+      const userId = req.headers['x-user-id'];
+      if (!userId) {
+        return res.status(401).json({ message: "Non autorisé" });
+      }
+
+      const user = await storage.getUser(parseInt(userId as string));
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ message: "Accès refusé - Admin requis" });
+      }
+
+      const employeeId = parseInt(req.params.id);
+      const success = await storage.deactivateEmployee(employeeId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Employé non trouvé" });
+      }
+      
+      res.json({ message: "Employé désactivé avec succès" });
+    } catch (error) {
+      console.error("Erreur désactivation employé:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Routes employés avec permissions restreintes
+  
+  // Voir les signalements d'utilisateurs (employé avec permission 'user_reports')
+  app.get("/api/employee/user-reports", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'user_reports')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const reports = await storage.getUserReports();
+      res.json(reports);
+    } catch (error) {
+      console.error("Erreur récupération signalements:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Traiter un signalement (employé avec permission 'user_reports')
+  app.patch("/api/employee/user-reports/:id/review", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'user_reports')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const reportId = parseInt(req.params.id);
+      const { status, resolution } = req.body;
+      
+      const report = await storage.reviewUserReport(reportId, employee.id, status, resolution);
+      res.json(report);
+    } catch (error) {
+      console.error("Erreur traitement signalement:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Voir les problèmes de trajets (employé avec permission 'trip_issues')
+  app.get("/api/employee/trip-issues", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'trip_issues')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const issues = await storage.getTripIssues();
+      res.json(issues);
+    } catch (error) {
+      console.error("Erreur récupération problèmes:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Résoudre un problème de trajet (employé avec permission 'trip_issues')
+  app.patch("/api/employee/trip-issues/:id/resolve", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'trip_issues')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const issueId = parseInt(req.params.id);
+      const { resolution } = req.body;
+      
+      const issue = await storage.resolveTripIssue(issueId, employee.id, resolution);
+      res.json(issue);
+    } catch (error) {
+      console.error("Erreur résolution problème:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Voir les évaluations en attente (employé avec permission 'ratings')
+  app.get("/api/employee/pending-ratings", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'ratings')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const ratings = await storage.getPendingRatings();
+      res.json(ratings);
+    } catch (error) {
+      console.error("Erreur récupération évaluations:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Approuver une évaluation (employé avec permission 'ratings')
+  app.patch("/api/employee/ratings/:id/approve", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'ratings')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const ratingId = parseInt(req.params.id);
+      const rating = await storage.approveRating(ratingId, employee.id);
+      res.json(rating);
+    } catch (error) {
+      console.error("Erreur approbation évaluation:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
+  // Rejeter une évaluation (employé avec permission 'ratings')
+  app.patch("/api/employee/ratings/:id/reject", employeeAuth, async (req, res) => {
+    try {
+      const employee = (req as any).employee;
+      
+      if (!hasPermission(employee, 'ratings')) {
+        return res.status(403).json({ message: "Permission insuffisante" });
+      }
+
+      const ratingId = parseInt(req.params.id);
+      const rating = await storage.rejectRating(ratingId, employee.id);
+      res.json(rating);
+    } catch (error) {
+      console.error("Erreur rejet évaluation:", error);
+      res.status(500).json({ message: "Erreur serveur" });
     }
   });
 
