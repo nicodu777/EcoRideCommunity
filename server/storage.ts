@@ -1,6 +1,7 @@
-import { users, trips, bookings, ratings, tripIssues, platformEarnings, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "@shared/schema";
+import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMessages, userReports, adminActions, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, like, sql, desc, count, gte } from "drizzle-orm";
+import { eq, and, like, sql, desc, count, gte, asc } from "drizzle-orm";
+import { pool } from "./db";
 
 export interface IStorage {
   // User operations
@@ -511,6 +512,12 @@ export class MemStorage implements IStorage {
     user.averageRating = averageRating;
     user.totalRatings = userRatings.length;
     this.users.set(userId, user);
+  }
+
+  async getMessagesByTrip(tripId: number): Promise<any[]> {
+    // Pour le moment, retourner un tableau vide car nous n'avons pas encore de messages dans MemStorage
+    // Dans une vraie implémentation, cela rechercherait dans une map de messages
+    return [];
   }
 }
 
@@ -1110,6 +1117,31 @@ export class DatabaseStorage implements IStorage {
     ]);
     
     return result.rows[0];
+  }
+
+  async getMessagesByTrip(tripId: number): Promise<any[]> {
+    try {
+      const messages = await db
+        .select({
+          id: chatMessages.id,
+          tripId: chatMessages.tripId,
+          senderId: chatMessages.senderId,
+          message: chatMessages.message,
+          messageType: chatMessages.messageType,
+          isRead: chatMessages.isRead,
+          createdAt: chatMessages.createdAt,
+          senderName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`.as('senderName')
+        })
+        .from(chatMessages)
+        .innerJoin(users, eq(chatMessages.senderId, users.id))
+        .where(eq(chatMessages.tripId, tripId))
+        .orderBy(asc(chatMessages.createdAt));
+      
+      return messages;
+    } catch (error) {
+      console.error("Error fetching messages by trip:", error);
+      return [];
+    }
   }
 }
 
