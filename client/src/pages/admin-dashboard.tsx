@@ -92,9 +92,16 @@ export default function AdminDashboard() {
     }
 
     try {
-      await apiRequest("POST", "/api/users", {
-        ...newEmployee,
-        role: "employee",
+      await apiRequest("/api/admin/employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user.id.toString(),
+        },
+        body: JSON.stringify({
+          ...newEmployee,
+          permissions: newEmployee.permissions || ["support"]
+        })
       });
 
       toast({
