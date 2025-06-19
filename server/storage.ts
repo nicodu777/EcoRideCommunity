@@ -66,6 +66,15 @@ export interface IStorage {
   // Message operations
   getMessagesByTrip(tripId: number): Promise<any[]>;
   createChatMessage(message: any): Promise<any>;
+  
+  // Employee operations
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  getEmployee(id: number): Promise<Employee | undefined>;
+  getEmployeeByEmail(email: string): Promise<Employee | undefined>;
+  getAllEmployees(): Promise<Employee[]>;
+  updateEmployee(id: number, updates: Partial<Employee>): Promise<Employee | undefined>;
+  deactivateEmployee(id: number): Promise<boolean>;
+  updateEmployeeLastLogin(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {

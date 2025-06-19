@@ -232,6 +232,23 @@ export const systemSettings = pgTable("system_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Table pour les comptes employés
+export const employees = pgTable("employees", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(), // Hash du mot de passe
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone"),
+  position: text("position").notNull(), // Poste/fonction
+  permissions: text("permissions").array().notNull().default([]), // Permissions spécifiques
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: integer("created_by").notNull().references(() => users.id), // ID de l'admin qui a créé le compte
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Insert schemas
 // Additional insert schemas for new tables
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
@@ -290,6 +307,13 @@ export const insertAdminActionSchema = createInsertSchema(adminActions).omit({
 
 export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
   id: true,
+  updatedAt: true,
+});
+
+export const insertEmployeeSchema = createInsertSchema(employees).omit({
+  id: true,
+  lastLoginAt: true,
+  createdAt: true,
   updatedAt: true,
 });
 
@@ -486,6 +510,9 @@ export type InsertAdminAction = z.infer<typeof insertAdminActionSchema>;
 
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 
 // Extended types for API responses
 export type TripWithDriver = Trip & {
