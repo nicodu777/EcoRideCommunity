@@ -14,6 +14,9 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import SearchResults from "@/pages/search-results";
 import { MessagesPage } from "@/pages/messages";
 import NotFound from "@/pages/not-found";
+import EmployeesPage from "@/pages/admin/employees";
+import EmployeeLogin from "@/pages/employee/login";
+import EmployeeDashboard from "@/pages/employee/dashboard";
 
 function Router() {
   return (
@@ -24,8 +27,11 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/employee" component={EmployeeDashboard} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/admin/employees" component={EmployeesPage} />
       <Route path="/search" component={SearchResults} />
       <Route path="/messages" component={MessagesPage} />
+      <Route path="/employee/login" component={EmployeeLogin} />
+      <Route path="/employee/dashboard" component={EmployeeDashboard} />
       <Route component={NotFound} />
     </Switch>
   );

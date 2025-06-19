@@ -512,7 +512,20 @@ export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
 
 export type Employee = typeof employees.$inferSelect;
-export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+export type InsertEmployee = typeof employees.$inferInsert;
+
+// Schéma de validation pour la création d'employés (sans createdBy qui sera ajouté côté serveur)
+export const insertEmployeeSchema = createInsertSchema(employees).extend({
+  password: z.string().min(6, "Le mot de passe doit faire au moins 6 caractères"),
+  permissions: z.array(z.string()).default([])
+}).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true, 
+  lastLoginAt: true,
+  isActive: true,
+  createdBy: true  // Omis car ajouté côté serveur
+});
 
 // Extended types for API responses
 export type TripWithDriver = Trip & {
