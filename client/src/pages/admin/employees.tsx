@@ -39,128 +39,125 @@ interface NewEmployee {
   position: string;
   permissions: string[];
 }
-}
 
-const AVAILABLE_PERMISSIONS = [
-  { value: 'user_reports', label: 'Signalements utilisateurs' },
-  { value: 'trip_issues', label: 'Problèmes de trajets' },
-  { value: 'ratings', label: 'Modération des évaluations' },
-  { value: 'support', label: 'Support client' },
+const PERMISSION_OPTIONS = [
+  { id: 'user_reports', label: 'Signalements utilisateurs', description: 'Gérer les signalements et plaintes' },
+  { id: 'trip_issues', label: 'Problèmes trajets', description: 'Résoudre les problèmes de covoiturage' },
+  { id: 'ratings', label: 'Évaluations', description: 'Modérer les avis et commentaires' },
+  { id: 'support', label: 'Support client', description: 'Assistance aux utilisateurs' },
+  { id: 'analytics', label: 'Analytics', description: 'Accès aux statistiques' }
 ];
 
-export default function EmployeesPage() {
+const POSITION_OPTIONS = [
+  'Support Client',
+  'Modérateur',
+  'Gestionnaire Contenus',
+  'Analyste',
+  'Responsable Qualité'
+];
+
+export default function EmployeesManagement() {
   const { user } = useAuth();
-  const userId = user?.profile?.id;
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  
+  const [newEmployee, setNewEmployee] = useState<NewEmployee>({
     email: '',
     password: '',
     firstName: '',
     lastName: '',
     phone: '',
-    position: '',
-    permissions: [] as string[],
+    position: 'Support Client',
+    permissions: []
   });
 
+  // Fetch employees
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['/api/admin/employees'],
     queryFn: () => apiRequest('/api/admin/employees', {
-      headers: {
-        'x-user-id': userId?.toString() || '',
-      },
-    }),
-    enabled: !!userId && user?.profile?.role === 'admin',
+      headers: { 'x-user-id': user?.id.toString() }
+    })
   });
 
+  // Create employee mutation
   const createEmployeeMutation = useMutation({
-    mutationFn: (data: typeof formData) =>
-      apiRequest('/api/admin/employees', {
+    mutationFn: async (employeeData: NewEmployee) => {
+      return apiRequest('/api/admin/employees', {
         method: 'POST',
         headers: {
-          'x-user-id': userId?.toString() || '',
+          'Content-Type': 'application/json',
+          'x-user-id': user?.id.toString()
         },
-        body: JSON.stringify(data),
-      }),
+        body: JSON.stringify(employeeData)
+      });
+    },
     onSuccess: () => {
       toast({
-        title: "Succès",
-        description: "Employé créé avec succès",
+        title: "Employé créé",
+        description: "Le compte employé a été créé avec succès"
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/employees'] });
-      setIsCreateDialogOpen(false);
-      setFormData({
+      setNewEmployee({
         email: '',
         password: '',
         firstName: '',
         lastName: '',
         phone: '',
-        position: '',
-        permissions: [],
+        position: 'Support Client',
+        permissions: []
       });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erreur",
-        description: error.message || "Erreur lors de la création",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deactivateEmployeeMutation = useMutation({
-    mutationFn: (employeeId: number) =>
-      apiRequest(`/api/admin/employees/${employeeId}/deactivate`, {
-        method: 'PATCH',
-        headers: {
-          'x-user-id': userId?.toString() || '',
-        },
-      }),
-    onSuccess: () => {
-      toast({
-        title: "Succès",
-        description: "Employé désactivé avec succès",
-      });
+      setShowCreateDialog(false);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/employees'] });
     },
     onError: (error: any) => {
       toast({
         title: "Erreur",
-        description: error.message || "Erreur lors de la désactivation",
-        variant: "destructive",
+        description: error.message || "Impossible de créer l'employé",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   const handleCreateEmployee = () => {
-    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName || !formData.position) {
+    if (!newEmployee.email || !newEmployee.password || !newEmployee.firstName || !newEmployee.lastName) {
       toast({
         title: "Erreur",
         description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
 
-    createEmployeeMutation.mutate(formData);
+    if (newEmployee.permissions.length === 0) {
+      toast({
+        title: "Erreur", 
+        description: "Veuillez sélectionner au moins une permission",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    createEmployeeMutation.mutate(newEmployee);
   };
 
-  const handlePermissionChange = (permission: string, checked: boolean) => {
-    setFormData(prev => ({
+  const handlePermissionChange = (permissionId: string, checked: boolean) => {
+    setNewEmployee(prev => ({
       ...prev,
-      permissions: checked
-        ? [...prev.permissions, permission]
-        : prev.permissions.filter(p => p !== permission)
+      permissions: checked 
+        ? [...prev.permissions, permissionId]
+        : prev.permissions.filter(p => p !== permissionId)
     }));
   };
 
-  if (user?.profile?.role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="flex items-center justify-center h-64">
-            <p className="text-muted-foreground">Accès refusé - Administrateur requis</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-red-600 mb-2">Accès refusé</h1>
+              <p className="text-gray-600">Vous n'avez pas les permissions nécessaires.</p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -168,222 +165,232 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Gestion des employés</h1>
-          <p className="text-muted-foreground">Créer et gérer les comptes employés</p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-eco-green hover:bg-green-600">
+    <div className="min-h-screen bg-slate-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-slate-900">Gestion des employés</h1>
+              <p className="text-slate-600 mt-2">Créez et gérez les comptes employés</p>
+            </div>
+            <Button onClick={() => setShowCreateDialog(true)} className="bg-eco-green hover:bg-green-600">
               <UserPlus className="w-4 h-4 mr-2" />
               Nouvel employé
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Créer un compte employé</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="firstName">Prénom *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
-                    placeholder="Prénom"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Nom *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
-                    placeholder="Nom"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="email@exemple.com"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="password">Mot de passe *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="Mot de passe sécurisé"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="phone">Téléphone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="06 12 34 56 78"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="position">Poste *</Label>
-                <Input
-                  id="position"
-                  value={formData.position}
-                  onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
-                  placeholder="Support client, Modérateur..."
-                />
-              </div>
-              
-              <div>
-                <Label>Permissions</Label>
-                <div className="space-y-2">
-                  {AVAILABLE_PERMISSIONS.map((permission) => (
-                    <div key={permission.value} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={permission.value}
-                        checked={formData.permissions.includes(permission.value)}
-                        onCheckedChange={(checked) =>
-                          handlePermissionChange(permission.value, checked as boolean)
-                        }
-                      />
-                      <Label htmlFor={permission.value} className="text-sm">
-                        {permission.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <Button
-                onClick={handleCreateEmployee}
-                disabled={createEmployeeMutation.isPending}
-                className="w-full bg-eco-green hover:bg-green-600"
-              >
-                {createEmployeeMutation.isPending ? "Création..." : "Créer l'employé"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
 
-      {isLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center h-64">
-            <div className="animate-spin w-8 h-8 border-2 border-eco-green border-t-transparent rounded-full" />
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
-          {employees.length === 0 ? (
-            <Card>
-              <CardContent className="flex items-center justify-center h-64">
-                <div className="text-center">
-                  <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">Aucun employé créé</p>
-                  <p className="text-sm text-muted-foreground">Créez votre premier compte employé</p>
+          {/* Employees List */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Eye className="w-5 h-5 mr-2 text-blue-600" />
+                Employés ({employees.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-eco-green mx-auto"></div>
+                  <p className="text-slate-500 mt-2">Chargement...</p>
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-4">
-              {employees.map((employee: Employee) => (
-                <Card key={employee.id} className="border-l-4 border-l-eco-green">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {employee.firstName} {employee.lastName}
-                          <Badge variant={employee.isActive ? "default" : "secondary"}>
-                            {employee.isActive ? "Actif" : "Inactif"}
-                          </Badge>
-                        </CardTitle>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                          <div className="flex items-center gap-1">
-                            <Briefcase className="w-4 h-4" />
-                            {employee.position}
+              ) : employees.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserMinus className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">Aucun employé créé</p>
+                  <p className="text-xs text-slate-400 mt-1">Créez votre premier compte employé</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {employees.map((employee: Employee) => (
+                    <div key={employee.id} className="border rounded-lg p-4 bg-white">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3">
+                            <div>
+                              <h3 className="font-medium text-slate-900">
+                                {employee.firstName} {employee.lastName}
+                              </h3>
+                              <div className="flex items-center space-x-4 text-sm text-slate-500 mt-1">
+                                <span className="flex items-center">
+                                  <Mail className="w-3 h-3 mr-1" />
+                                  {employee.email}
+                                </span>
+                                {employee.phone && (
+                                  <span className="flex items-center">
+                                    <Phone className="w-3 h-3 mr-1" />
+                                    {employee.phone}
+                                  </span>
+                                )}
+                                <span className="flex items-center">
+                                  <Briefcase className="w-3 h-3 mr-1" />
+                                  {employee.position}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {employee.email}
+                          
+                          <div className="flex flex-wrap gap-1 mt-3">
+                            {employee.permissions.map(permission => {
+                              const permissionInfo = PERMISSION_OPTIONS.find(p => p.id === permission);
+                              return (
+                                <Badge key={permission} variant="secondary" className="text-xs">
+                                  {permissionInfo?.label || permission}
+                                </Badge>
+                              );
+                            })}
                           </div>
-                          {employee.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="w-4 h-4" />
-                              {employee.phone}
+                          
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center space-x-2 text-xs text-slate-500">
+                              <Calendar className="w-3 h-3" />
+                              <span>Créé le {format(new Date(employee.createdAt), 'dd/MM/yyyy', { locale: fr })}</span>
+                            </div>
+                            <Badge variant={employee.isActive ? "default" : "destructive"}>
+                              {employee.isActive ? "Actif" : "Inactif"}
+                            </Badge>
+                          </div>
+                          
+                          {employee.lastLoginAt && (
+                            <div className="text-xs text-slate-500 mt-1">
+                              Dernière connexion: {format(new Date(employee.lastLoginAt), 'dd/MM/yyyy à HH:mm', { locale: fr })}
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        {employee.isActive && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deactivateEmployeeMutation.mutate(employee.id)}
-                            disabled={deactivateEmployeeMutation.isPending}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Create Employee Dialog */}
+          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center">
+                  <UserPlus className="w-5 h-5 mr-2 text-eco-green" />
+                  Créer un nouveau compte employé
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">Prénom *</Label>
+                    <Input
+                      id="firstName"
+                      value={newEmployee.firstName}
+                      onChange={(e) => setNewEmployee(prev => ({ ...prev, firstName: e.target.value }))}
+                      placeholder="Prénom"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Nom *</Label>
+                    <Input
+                      id="lastName"
+                      value={newEmployee.lastName}
+                      onChange={(e) => setNewEmployee(prev => ({ ...prev, lastName: e.target.value }))}
+                      placeholder="Nom"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newEmployee.email}
+                    onChange={(e) => setNewEmployee(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="email@ecoride.com"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="phone">Téléphone</Label>
+                  <Input
+                    id="phone"
+                    value={newEmployee.phone}
+                    onChange={(e) => setNewEmployee(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="06 12 34 56 78"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="password">Mot de passe temporaire *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newEmployee.password}
+                    onChange={(e) => setNewEmployee(prev => ({ ...prev, password: e.target.value }))}
+                    placeholder="Mot de passe (min. 8 caractères)"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">L'employé devra changer ce mot de passe à sa première connexion</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="position">Poste</Label>
+                  <Select value={newEmployee.position} onValueChange={(value) => setNewEmployee(prev => ({ ...prev, position: value }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POSITION_OPTIONS.map(position => (
+                        <SelectItem key={position} value={position}>{position}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Permissions *</Label>
+                  <div className="space-y-3 mt-2">
+                    {PERMISSION_OPTIONS.map(permission => (
+                      <div key={permission.id} className="flex items-start space-x-3">
+                        <Checkbox
+                          id={permission.id}
+                          checked={newEmployee.permissions.includes(permission.id)}
+                          onCheckedChange={(checked) => handlePermissionChange(permission.id, checked as boolean)}
+                        />
+                        <div className="grid gap-1.5 leading-none">
+                          <label
+                            htmlFor={permission.id}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            <UserMinus className="w-4 h-4 mr-1" />
-                            Désactiver
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-medium mb-2">Permissions</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {employee.permissions.length > 0 ? (
-                            employee.permissions.map((permission) => {
-                              const permissionLabel = AVAILABLE_PERMISSIONS.find(p => p.value === permission)?.label || permission;
-                              return (
-                                <Badge key={permission} variant="outline">
-                                  {permissionLabel}
-                                </Badge>
-                              );
-                            })
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Aucune permission</span>
-                          )}
+                            {permission.label}
+                          </label>
+                          <p className="text-xs text-muted-foreground">
+                            {permission.description}
+                          </p>
                         </div>
                       </div>
-                      
-                      <div className="flex gap-6 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          Créé le {format(new Date(employee.createdAt), "dd MMMM yyyy", { locale: fr })}
-                        </div>
-                        {employee.lastLoginAt && (
-                          <div className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            Dernière connexion: {format(new Date(employee.lastLoginAt), "dd/MM/yyyy à HH:mm", { locale: fr })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex space-x-2 pt-4">
+                  <Button 
+                    onClick={handleCreateEmployee}
+                    disabled={createEmployeeMutation.isPending}
+                    className="flex-1 bg-eco-green hover:bg-green-600"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {createEmployeeMutation.isPending ? 'Création...' : 'Créer le compte'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowCreateDialog(false)}
+                    className="flex-1"
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
-      )}
+      </div>
     </div>
   );
 }
