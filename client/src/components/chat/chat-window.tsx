@@ -36,22 +36,25 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/trip/${tripId}`],
     enabled: isOpen && !!tripId,
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 1000, // Refresh every 1 second
     refetchOnWindowFocus: true,
+    staleTime: 0, // Always consider data stale
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (newMessage: any) => {
-      return apiRequest("POST", "/api/chat/messages", newMessage);
+      const response = await apiRequest("POST", "/api/chat/messages", newMessage);
+      return response;
     },
-    onSuccess: () => {
-      // Invalider immédiatement la requête pour rafraîchir les messages
-      queryClient.invalidateQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
-      queryClient.refetchQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
-      // Scroll to bottom after new message
+    onSuccess: async () => {
+      // Forcer la mise à jour immédiate des messages
+      await queryClient.invalidateQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
+      
+      // Scroll vers le bas après l'envoi du message
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 200);
+      }, 100);
     },
     onError: (error) => {
       console.error("Error sending message:", error);
@@ -63,18 +66,23 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
     },
   });
 
-  const handleSendMessage = () => {
-    if (!message.trim()) return;
+  const handleSendMessage = async () => {
+    if (!message.trim() || sendMessageMutation.isPending) return;
 
     const messageToSend = message.trim();
     setMessage(""); // Clear input immediately
 
-    sendMessageMutation.mutate({
-      tripId,
-      senderId: userId,
-      message: messageToSend,
-      messageType: "text",
-    });
+    try {
+      await sendMessageMutation.mutateAsync({
+        tripId,
+        senderId: userId,
+        message: messageToSend,
+        messageType: "text",
+      });
+    } catch (error) {
+      // Restore message if sending failed
+      setMessage(messageToSend);
+    }
   };
 
   useEffect(() => {
@@ -104,9 +112,9 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
             </div>
           ) : (
             <div className="space-y-4 py-2">
-              {messages.map((msg) => (
+              {messages.map((msg, index) => (
                 <div
-                  key={`${msg.id}-${msg.createdAt}`}
+                  key={`${msg.id}-${index}-${msg.createdAt}`}
                   className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
                 >
                   <div
