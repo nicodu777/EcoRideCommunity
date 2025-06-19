@@ -126,9 +126,9 @@ export function MessagesPage() {
             ) : (
               <ScrollArea className="h-[600px]">
                 <div className="divide-y divide-gray-200">
-                  {filteredConversations.map((conversation) => (
+                  {filteredConversations.map((conversation, index) => (
                     <div
-                      key={conversation.tripId}
+                      key={`${conversation.tripId}-${index}`}
                       onClick={() => setSelectedTripId(conversation.tripId)}
                       className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
                     >

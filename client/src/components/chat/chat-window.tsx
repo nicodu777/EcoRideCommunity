@@ -36,7 +36,8 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/trip/${tripId}`],
     enabled: isOpen && !!tripId,
-    refetchInterval: 3000, // Refresh every 3 seconds
+    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchOnWindowFocus: true,
   });
 
   const sendMessageMutation = useMutation({
@@ -44,13 +45,16 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
       return apiRequest("POST", "/api/chat/messages", newMessage);
     },
     onSuccess: () => {
+      // Invalider immédiatement la requête pour rafraîchir les messages
       queryClient.invalidateQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
+      queryClient.refetchQueries({ queryKey: [`/api/chat/trip/${tripId}`] });
       // Scroll to bottom after new message
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      }, 100);
+      }, 200);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error sending message:", error);
       toast({
         title: "Erreur",
         description: "Impossible d'envoyer le message",

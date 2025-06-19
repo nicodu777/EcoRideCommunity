@@ -489,7 +489,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversations = [];
       
       // Conversations basées sur les réservations (utilisateur = passager)
+      const processedTripIds = new Set();
       for (const booking of userBookings) {
+        if (processedTripIds.has(booking.tripId)) continue;
+        processedTripIds.add(booking.tripId);
+        
         const trip = await storage.getTripWithDriver(booking.tripId);
         if (trip) {
           // Récupérer le dernier message pour ce trajet
@@ -521,6 +525,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Conversations basées sur les trajets (utilisateur = conducteur)
       for (const trip of userTrips) {
+        if (processedTripIds.has(trip.id)) continue;
+        processedTripIds.add(trip.id);
+        
         const bookings = await storage.getBookingsByTrip(trip.id);
         if (bookings.length > 0) {
           // Récupérer le dernier message pour ce trajet
