@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema } from "@shared/schema";
+import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema, insertChatMessageSchema } from "@shared/schema";
 import { z } from "zod";
 import { wsManager } from "./websocket";
 
@@ -474,6 +474,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(actions);
     } catch (error: any) {
       res.status(500).json({ message: "Error fetching admin actions: " + error.message });
+    }
+  });
+
+  // Chat message routes
+  app.get("/api/chat/trip/:tripId", async (req, res) => {
+    try {
+      const tripId = parseInt(req.params.tripId);
+      const messages = await storage.getMessagesByTrip(tripId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching trip messages:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/chat/messages", async (req, res) => {
+    try {
+      const messageData = insertChatMessageSchema.parse(req.body);
+      const message = await storage.createChatMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error creating message:", error);
+      res.status(400).json({ message: "Invalid message data" });
     }
   });
 

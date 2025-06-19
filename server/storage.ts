@@ -65,6 +65,7 @@ export interface IStorage {
   
   // Message operations
   getMessagesByTrip(tripId: number): Promise<any[]>;
+  createChatMessage(message: any): Promise<any>;
 }
 
 export class MemStorage implements IStorage {
@@ -518,6 +519,11 @@ export class MemStorage implements IStorage {
     // Pour le moment, retourner un tableau vide car nous n'avons pas encore de messages dans MemStorage
     // Dans une vraie implémentation, cela rechercherait dans une map de messages
     return [];
+  }
+
+  async createChatMessage(messageData: any): Promise<any> {
+    // Pour MemStorage, on ne stocke pas les messages pour le moment
+    return { id: Date.now(), ...messageData, createdAt: new Date() };
   }
 }
 
@@ -1141,6 +1147,27 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error fetching messages by trip:", error);
       return [];
+    }
+  }
+
+  async createChatMessage(messageData: any): Promise<any> {
+    try {
+      const [message] = await db
+        .insert(chatMessages)
+        .values({
+          tripId: messageData.tripId,
+          senderId: messageData.senderId,
+          message: messageData.message,
+          messageType: messageData.messageType || 'text',
+          isRead: false,
+          createdAt: new Date()
+        })
+        .returning();
+      
+      return message;
+    } catch (error) {
+      console.error("Error creating chat message:", error);
+      throw error;
     }
   }
 }
