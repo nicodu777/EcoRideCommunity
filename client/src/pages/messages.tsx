@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { authService } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,18 +28,31 @@ interface Conversation {
   unreadCount: number;
 }
 
-interface MessagesPageProps {
-  userId: number;
-}
-
-export function MessagesPage({ userId }: MessagesPageProps) {
+export function MessagesPage() {
+  const [user, setUser] = useState<any>(null);
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((authUser) => {
+      setUser(authUser);
+    });
+    return unsubscribe;
+  }, []);
+
   // Récupérer toutes les conversations de l'utilisateur
   const { data: conversations = [], isLoading } = useQuery<Conversation[]>({
-    queryKey: [`/api/chat/conversations/${userId}`],
+    queryKey: [`/api/chat/conversations/${user?.profile?.id}`],
+    enabled: !!user?.profile?.id,
   });
+
+  if (!user?.profile) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-eco-green border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   // Filtrer les conversations selon la recherche
   const filteredConversations = conversations.filter(conv =>
@@ -51,7 +65,7 @@ export function MessagesPage({ userId }: MessagesPageProps) {
     return (
       <ChatWindow
         tripId={selectedTripId}
-        userId={userId}
+        userId={user.profile.id}
         isOpen={true}
         onClose={() => setSelectedTripId(null)}
       />

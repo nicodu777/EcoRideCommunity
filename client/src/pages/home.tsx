@@ -13,6 +13,7 @@ import { authService, AuthUser } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Plus, MessageSquare, Leaf, Shield, Euro, Car, Search as SearchIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingMessagesButton } from "@/components/ui/floating-messages-button";
 
 export default function Home() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -307,19 +308,11 @@ export default function Home() {
           >
             <Plus size={20} />
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-14 h-14 rounded-full shadow-lg relative"
-            title="Messages"
-          >
-            <MessageSquare size={20} />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
-          </Button>
         </div>
       )}
+
+      {/* Floating Messages Button */}
+      {user && <FloatingMessagesButton userId={user.profile.id} />}
 
       {/* Modals */}
       <BookingModal
