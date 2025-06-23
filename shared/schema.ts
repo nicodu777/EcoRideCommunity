@@ -13,7 +13,7 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("passenger"), // "driver" | "passenger" | "both" | "employee" | "admin"
   averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
   totalRatings: integer("total_ratings").notNull().default(0),
-  credits: decimal("credits", { precision: 10, scale: 2 }).notNull().default("0.00"),
+  credits: decimal("credits", { precision: 10, scale: 2 }).notNull().default("20.00"), // 20 crédits à l'inscription selon les consignes
   isVerified: boolean("is_verified").notNull().default(false),
   isSuspended: boolean("is_suspended").notNull().default(false),
   // Stripe integration
@@ -46,6 +46,11 @@ export const trips = pgTable("trips", {
   status: text("status").notNull().default("pending"), // "pending" | "started" | "completed" | "cancelled"
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
+  // Vehicle information (OBLIGATOIRE selon les consignes)
+  vehicleType: text("vehicle_type").notNull(), // "electric" | "hybrid" | "gasoline" | "diesel"
+  vehicleBrand: text("vehicle_brand").notNull(),
+  vehicleModel: text("vehicle_model").notNull(),
+  isEcological: boolean("is_ecological").notNull().default(false), // true seulement si véhicule électrique
   // Enhanced location data
   departureCoordinates: text("departure_coordinates"), // JSON: {lat, lng}
   destinationCoordinates: text("destination_coordinates"), // JSON: {lat, lng}

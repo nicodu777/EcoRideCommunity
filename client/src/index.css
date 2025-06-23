@@ -24,28 +24,33 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
   
-  /* EcoRide custom colors */
+  /* EcoRide custom colors - Thème écologique */
   --eco-green: hsl(122, 39%, 49%);
+  --eco-green-light: hsl(122, 39%, 60%);
+  --eco-green-dark: hsl(122, 39%, 40%);
   --eco-blue: hsl(188, 91%, 43%);
   --eco-trust: hsl(217, 91%, 60%);
+  --eco-nature: hsl(84, 43%, 45%);
+  --eco-earth: hsl(36, 46%, 56%);
+  --eco-leaf: hsl(100, 38%, 35%);
 }
 
 .dark {
-  --background: hsl(240, 10%, 3.9%);
+  --background: hsl(100, 15%, 8%);
   --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 3.7%, 15.9%);
-  --muted-foreground: hsl(240, 5%, 64.9%);
-  --popover: hsl(240, 10%, 3.9%);
+  --muted: hsl(100, 10%, 15%);
+  --muted-foreground: hsl(100, 5%, 64.9%);
+  --popover: hsl(100, 15%, 8%);
   --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 3.9%);
+  --card: hsl(100, 15%, 8%);
   --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 3.7%, 15.9%);
-  --input: hsl(240, 3.7%, 15.9%);
-  --primary: hsl(122, 39%, 49%);
+  --border: hsl(100, 10%, 20%);
+  --input: hsl(100, 10%, 20%);
+  --primary: hsl(122, 39%, 55%);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary: hsl(100, 10%, 15%);
   --secondary-foreground: hsl(0, 0%, 98%);
-  --accent: hsl(240, 3.7%, 15.9%);
+  --accent: hsl(100, 10%, 15%);
   --accent-foreground: hsl(0, 0%, 98%);
   --destructive: hsl(0, 62.8%, 30.6%);
   --destructive-foreground: hsl(0, 0%, 98%);

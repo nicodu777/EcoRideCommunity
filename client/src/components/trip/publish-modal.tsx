@@ -37,6 +37,10 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
   const [availableSeats, setAvailableSeats] = useState(1);
   const [pricePerSeat, setPricePerSeat] = useState(0);
   const [description, setDescription] = useState("");
+  // Nouveaux champs obligatoires pour le véhicule
+  const [vehicleType, setVehicleType] = useState("");
+  const [vehicleBrand, setVehicleBrand] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +75,20 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
       return;
     }
     
+    // Validation obligatoire du véhicule selon les consignes
+    if (!vehicleType) {
+      alert("Veuillez sélectionner le type de véhicule");
+      return;
+    }
+    if (!vehicleBrand.trim()) {
+      alert("Veuillez entrer la marque du véhicule");
+      return;
+    }
+    if (!vehicleModel.trim()) {
+      alert("Veuillez entrer le modèle du véhicule");
+      return;
+    }
+    
     const departureDateTime = new Date(`${departureDate}T${departureTime}`);
     const arrivalDateTime = new Date(`${departureDate}T${arrivalTime}`);
     
@@ -90,6 +108,8 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
       return;
     }
     
+    const isEcological = vehicleType === "electric"; // Trajet écologique seulement si véhicule électrique
+    
     const tripData = {
       departure: departure.trim(),
       destination: destination.trim(),
@@ -99,6 +119,10 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
       totalSeats: Number(availableSeats),
       pricePerSeat: Number(pricePerSeat),
       description: description.trim() || undefined,
+      vehicleType: vehicleType,
+      vehicleBrand: vehicleBrand.trim(),
+      vehicleModel: vehicleModel.trim(),
+      isEcological: isEcological,
     };
 
     console.log("Submitting trip data:", tripData);
@@ -114,6 +138,9 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
     setAvailableSeats(1);
     setPricePerSeat(0);
     setDescription("");
+    setVehicleType("");
+    setVehicleBrand("");
+    setVehicleModel("");
   };
 
   const handleClose = () => {
@@ -280,6 +307,89 @@ export function PublishModal({ open, onClose, onPublish, loading = false }: Publ
                     className="pl-10 focus:ring-2 focus:ring-eco-green focus:border-eco-green"
                     required
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Section véhicule obligatoire */}
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center">
+                🚗 Informations sur votre véhicule (obligatoire)
+              </h3>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="vehicleType" className="text-sm font-medium text-slate-700">
+                    Type de véhicule
+                  </Label>
+                  <Select value={vehicleType} onValueChange={setVehicleType}>
+                    <SelectTrigger className="focus:ring-2 focus:ring-eco-green focus:border-eco-green">
+                      <SelectValue placeholder="Sélectionnez le type de véhicule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="electric">
+                        <div className="flex items-center">
+                          <span className="mr-2">⚡</span>
+                          Électrique (trajet écologique)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="hybrid">
+                        <div className="flex items-center">
+                          <span className="mr-2">🔋</span>
+                          Hybride
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gasoline">
+                        <div className="flex items-center">
+                          <span className="mr-2">⛽</span>
+                          Essence
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="diesel">
+                        <div className="flex items-center">
+                          <span className="mr-2">🛢️</span>
+                          Diesel
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {vehicleType === "electric" && (
+                    <p className="text-xs text-green-600 mt-1">
+                      ✅ Ce trajet sera marqué comme écologique
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="vehicleBrand" className="text-sm font-medium text-slate-700">
+                      Marque
+                    </Label>
+                    <Input
+                      id="vehicleBrand"
+                      type="text"
+                      placeholder="ex: Tesla, Renault..."
+                      value={vehicleBrand}
+                      onChange={(e) => setVehicleBrand(e.target.value)}
+                      className="focus:ring-2 focus:ring-eco-green focus:border-eco-green"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="vehicleModel" className="text-sm font-medium text-slate-700">
+                      Modèle
+                    </Label>
+                    <Input
+                      id="vehicleModel"
+                      type="text"
+                      placeholder="ex: Model 3, Zoe..."
+                      value={vehicleModel}
+                      onChange={(e) => setVehicleModel(e.target.value)}
+                      className="focus:ring-2 focus:ring-eco-green focus:border-eco-green"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
             </div>

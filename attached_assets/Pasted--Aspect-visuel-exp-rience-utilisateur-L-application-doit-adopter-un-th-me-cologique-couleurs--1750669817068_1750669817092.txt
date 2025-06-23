@@ -1,0 +1,63 @@
+🎨 Aspect visuel & expérience utilisateur
+L'application doit adopter un thème écologique (couleurs, ambiance visuelle).
+
+Elle doit être responsive (fonctionnelle sur desktop et mobile).
+
+Interface utilisateur claire et intuitive.
+
+🔐 Sécurité
+Authentification sécurisée (mot de passe fort, gestion des rôles).
+
+Vérification des crédits avant validation d’un trajet.
+
+Système de double confirmation avant réservation.
+
+Sécurité sur les formulaires (validation côté client et serveur).
+
+Gestion sécurisée des accès (utilisateur, employé, admin).
+
+Masquage ou protection des données sensibles.
+
+Validation manuelle des avis par les employés.
+
+Les trajets litigieux doivent être traités manuellement.
+
+🧠 Logique métier obligatoire
+Gestion des crédits utilisateurs (20 à l’inscription, prélèvement selon règles).
+
+Mise à jour automatique des crédits et des places disponibles selon les actions.
+
+Un trajet n’est visible que si une place est dispo.
+
+Un trajet est écologique seulement s’il est effectué avec une voiture électrique.
+
+L’application doit forcer le choix d’un véhicule lors de la création de trajet.
+
+L’annulation d’un trajet doit entraîner une mise à jour des données (et envoi de mail).
+
+Validation d’un trajet terminé déclenche l’activation des crédits chauffeur.
+
+👥 Gestion des rôles
+3 types d’utilisateurs distincts avec droits spécifiques :
+
+Utilisateur : Passager / Chauffeur
+
+Employé : modération des avis & gestion litiges
+
+Administrateur : gestion des employés, statistiques, suspension de comptes
+
+Le compte administrateur doit être créé manuellement en amont, pas via l’interface.
+
+🗃️ Données & Base de données
+Obligation d’utiliser une base relationnelle (PostgreSQL, MySQL…).
+
+Obligation d’utiliser une base NoSQL (ex. Firebase Firestore, MongoDB…).
+
+Un schéma MCD est fourni mais son usage n’est pas obligatoire.
+
+🚀 Déploiement & accessibilité
+L’application doit être en ligne et accessible publiquement.
+
+Fournir un lien de déploiement fonctionnel.
+
+Fournir des identifiants de test (admin, utilisateur, etc.).
