@@ -12,9 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, X } from "lucide-react";
+import { Star, X, Leaf } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { BookingConfirmationModal } from "./booking-confirmation-modal";
 
 interface BookingModalProps {
   trip: TripWithDriver | null;
@@ -22,11 +23,13 @@ interface BookingModalProps {
   onClose: () => void;
   onConfirm: (tripId: number, seatsBooked: number, message: string, totalPrice: number) => void;
   loading?: boolean;
+  userCredits?: number;
 }
 
-export function BookingModal({ trip, open, onClose, onConfirm, loading = false }: BookingModalProps) {
+export function BookingModal({ trip, open, onClose, onConfirm, loading = false, userCredits = 0 }: BookingModalProps) {
   const [seatsBooked, setSeatsBooked] = useState(1);
   const [message, setMessage] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   if (!trip) return null;
 
@@ -43,7 +46,13 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
   const totalPrice = parseFloat(trip.pricePerSeat) * seatsBooked;
 
   const handleConfirm = () => {
+    // Ouvrir le modal de confirmation au lieu de confirmer directement
+    setShowConfirmation(true);
+  };
+
+  const handleFinalConfirm = () => {
     onConfirm(trip.id, seatsBooked, message, totalPrice);
+    setShowConfirmation(false);
   };
 
   const getDriverInitials = () => {
@@ -163,11 +172,23 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false }
               onClick={handleConfirm}
               disabled={loading}
             >
-              {loading ? "Confirmation..." : "Confirmer"}
+              {loading ? "Confirmation..." : "Continuer"}
             </Button>
           </div>
         </div>
       </DialogContent>
+
+      {/* Modal de double confirmation */}
+      <BookingConfirmationModal
+        trip={trip}
+        seatsBooked={seatsBooked}
+        totalPrice={totalPrice}
+        userCredits={userCredits}
+        open={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+        onConfirm={handleFinalConfirm}
+        loading={loading}
+      />
     </Dialog>
   );
 }

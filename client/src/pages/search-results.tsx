@@ -232,6 +232,7 @@ export default function SearchResults() {
         }}
         onConfirm={handleConfirmBooking}
         loading={bookingLoading}
+        userCredits={user?.profile?.credits ? parseFloat(user.profile.credits) : 0}
       />
 
       {/* Chat Window */}

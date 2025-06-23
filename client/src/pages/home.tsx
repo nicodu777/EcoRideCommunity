@@ -324,6 +324,7 @@ export default function Home() {
         }}
         onConfirm={handleConfirmBooking}
         loading={bookingLoading}
+        userCredits={user?.profile?.credits ? parseFloat(user.profile.credits) : 0}
       />
 
       <PublishModal
