@@ -33,10 +33,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users/firebase/:uid", async (req, res) => {
     try {
-      const user = await storage.getUserByFirebaseUid(req.params.uid);
+      let user = await storage.getUserByFirebaseUid(req.params.uid);
+      
+      // Si l'utilisateur n'existe pas, on le crée avec des données par défaut
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        user = await storage.createUser({
+          firebaseUid: req.params.uid,
+          email: `user-${req.params.uid}@ecoride.com`,
+          firstName: "Utilisateur",
+          lastName: "EcoRide",
+          phone: "",
+          role: "passenger"
+        });
       }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);

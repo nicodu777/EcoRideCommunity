@@ -312,7 +312,7 @@ export default function Home() {
       )}
 
       {/* Floating Messages Button */}
-      {user && <FloatingMessagesButton userId={user.profile.id} />}
+      {user?.profile && <FloatingMessagesButton userId={user.profile.id} />}
 
       {/* Modals */}
       <BookingModal

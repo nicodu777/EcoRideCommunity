@@ -114,6 +114,7 @@ export class MemStorage implements IStorage {
         role: "driver",
         averageRating: "4.8",
         totalRatings: 24,
+        credits: 20, // 20 crédits par défaut selon les consignes
         isVerified: true,
         createdAt: new Date(),
       },
@@ -127,6 +128,7 @@ export class MemStorage implements IStorage {
         role: "driver",
         averageRating: "4.6",
         totalRatings: 18,
+        credits: 20,
         isVerified: true,
         createdAt: new Date(),
       },
@@ -140,6 +142,7 @@ export class MemStorage implements IStorage {
         role: "driver",
         averageRating: "4.9",
         totalRatings: 31,
+        credits: 20,
         isVerified: true,
         createdAt: new Date(),
       },
@@ -153,6 +156,7 @@ export class MemStorage implements IStorage {
         role: "driver",
         averageRating: "4.7",
         totalRatings: 15,
+        credits: 20,
         isVerified: true,
         createdAt: new Date(),
       }
@@ -181,8 +185,12 @@ export class MemStorage implements IStorage {
         availableSeats: 3,
         totalSeats: 4,
         pricePerSeat: "25",
-        description: "Trajet confortable avec pause déjeuner à Mâcon. Véhicule récent et climatisé.",
+        description: "Trajet écologique en Tesla Model 3. Confortable avec pause déjeuner à Mâcon.",
         isActive: true,
+        vehicleType: "electric",
+        vehicleBrand: "Tesla",
+        vehicleModel: "Model 3",
+        isEcological: true,
         createdAt: now,
       },
       {
@@ -195,8 +203,12 @@ export class MemStorage implements IStorage {
         availableSeats: 2,
         totalSeats: 3,
         pricePerSeat: "30",
-        description: "Départ depuis Gare de Lyon. Conduite souple, musique au choix des passagers.",
+        description: "Départ depuis Gare de Lyon. Conduite souple en véhicule hybride.",
         isActive: true,
+        vehicleType: "hybrid",
+        vehicleBrand: "Toyota",
+        vehicleModel: "Prius",
+        isEcological: false,
         createdAt: now,
       },
       // Lyon-Paris trips
@@ -210,8 +222,12 @@ export class MemStorage implements IStorage {
         availableSeats: 1,
         totalSeats: 4, 
         pricePerSeat: "28",
-        description: "Trajet direct sans arrêt. Départ de Lyon Part-Dieu, arrivée Porte d'Italie.",
+        description: "Trajet écologique direct en Renault Zoe électrique. Lyon Part-Dieu vers Porte d'Italie.",
         isActive: true,
+        vehicleType: "electric",
+        vehicleBrand: "Renault",
+        vehicleModel: "Zoe",
+        isEcological: true,
         createdAt: now,
       },
       // Paris-Marseille trips
@@ -225,8 +241,12 @@ export class MemStorage implements IStorage {
         availableSeats: 2,
         totalSeats: 4,
         pricePerSeat: "45",
-        description: "Trajet avec pause déjeuner à Avignon. Vue sur la mer à l'arrivée !",
-        isActive: true, 
+        description: "Trajet hybride écologique avec pause déjeuner à Avignon.",
+        isActive: true,
+        vehicleType: "hybrid", 
+        vehicleBrand: "Toyota",
+        vehicleModel: "Prius",
+        isEcological: false,
         createdAt: now,
       },
       // Toulouse-Paris trips
@@ -240,8 +260,12 @@ export class MemStorage implements IStorage {
         availableSeats: 3,
         totalSeats: 4,
         pricePerSeat: "35",
-        description: "Trajet matinal avec petit-déjeuner offert. Wifi gratuit dans le véhicule.",
+        description: "Trajet matinal écologique en véhicule électrique avec petit-déjeuner offert.",
         isActive: true,
+        vehicleType: "electric",
+        vehicleBrand: "Nissan",
+        vehicleModel: "Leaf",
+        isEcological: true,
         createdAt: now,
       },
       // Bordeaux-Lyon trips  
@@ -255,8 +279,12 @@ export class MemStorage implements IStorage {
         availableSeats: 4,
         totalSeats: 4,
         pricePerSeat: "40",
-        description: "Premier trajet ! Véhicule spacieux, arrêt prévu à Limoges.",
+        description: "Premier trajet en véhicule hybride ! Spacieux, arrêt prévu à Limoges.",
         isActive: true,
+        vehicleType: "hybrid",
+        vehicleBrand: "Honda",
+        vehicleModel: "CR-V Hybrid",
+        isEcological: false,
         createdAt: now,
       },
       // Nice-Paris trips
@@ -270,8 +298,12 @@ export class MemStorage implements IStorage {
         availableSeats: 1,
         totalSeats: 3,
         pricePerSeat: "50",
-        description: "Trajet panoramique le long de la côte puis autoroutes. Très bon conducteur.",
+        description: "Trajet écologique panoramique en Tesla le long de la côte puis autoroutes.",
         isActive: true,
+        vehicleType: "electric",
+        vehicleBrand: "Tesla",
+        vehicleModel: "Model S",
+        isEcological: true,
         createdAt: now,
       }
     ];
@@ -302,6 +334,7 @@ export class MemStorage implements IStorage {
       id,
       averageRating: "0",
       totalRatings: 0,
+      credits: 20, // 20 crédits par défaut selon les consignes
       isVerified: false,
       createdAt: new Date(),
     };
@@ -1291,4 +1324,6 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Utilisation temporaire du stockage en mémoire car l'endpoint Neon est inactif
+export const storage = new MemStorage();
+// export const storage = new DatabaseStorage();
