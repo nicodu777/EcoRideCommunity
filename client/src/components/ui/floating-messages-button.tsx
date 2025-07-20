@@ -22,7 +22,7 @@ export function FloatingMessagesButton({ userId }: FloatingMessagesButtonProps) 
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-24 right-6 z-50">
       <Button
         onClick={handleClick}
         className="w-14 h-14 rounded-full bg-eco-green hover:bg-green-600 shadow-lg relative transition-all duration-200 hover:scale-110"

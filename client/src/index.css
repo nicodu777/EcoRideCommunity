@@ -24,15 +24,15 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
   
-  /* EcoRide custom colors - Thème écologique */
-  --eco-green: hsl(122, 39%, 49%);
-  --eco-green-light: hsl(122, 39%, 60%);
-  --eco-green-dark: hsl(122, 39%, 40%);
-  --eco-blue: hsl(188, 91%, 43%);
-  --eco-trust: hsl(217, 91%, 60%);
-  --eco-nature: hsl(84, 43%, 45%);
-  --eco-earth: hsl(36, 46%, 56%);
-  --eco-leaf: hsl(100, 38%, 35%);
+  /* EcoRide custom colors - Thème écologique avec meilleur contraste */
+  --eco-green: hsl(122, 50%, 45%);
+  --eco-green-light: hsl(122, 50%, 55%);
+  --eco-green-dark: hsl(122, 50%, 35%);
+  --eco-blue: hsl(188, 85%, 40%);
+  --eco-trust: hsl(217, 85%, 55%);
+  --eco-nature: hsl(84, 50%, 40%);
+  --eco-earth: hsl(36, 50%, 50%);
+  --eco-leaf: hsl(100, 45%, 30%);
 }
 
 .dark {
@@ -63,7 +63,7 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased bg-slate-50 text-slate-900;
   }
 }
 

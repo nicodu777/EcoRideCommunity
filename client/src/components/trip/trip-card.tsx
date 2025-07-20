@@ -49,12 +49,12 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
                 {trip.driver.firstName} {trip.driver.lastName}
               </h4>
               <div className="flex items-center space-x-1">
-                {renderStars(trip.driver.averageRating)}
-                <span className="text-sm text-slate-600 ml-1">
-                  {parseFloat(trip.driver.averageRating).toFixed(1)}
+                {renderStars(trip.driver.averageRating || "0")}
+                <span className="text-sm text-slate-700 ml-1 font-medium">
+                  {parseFloat(trip.driver.averageRating || "0").toFixed(1)}
                 </span>
                 {trip.driver.totalRatings > 0 && (
-                  <span className="text-sm text-slate-400">
+                  <span className="text-sm text-slate-500">
                     ({trip.driver.totalRatings})
                   </span>
                 )}
@@ -72,23 +72,23 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
         <div className="space-y-3 mb-4">
           <div className="flex items-center space-x-3">
             <div className="w-3 h-3 bg-eco-green rounded-full"></div>
-            <span className="text-slate-900 font-medium flex-1">{trip.departure}</span>
-            <span className="text-sm text-slate-500">
+            <span className="text-slate-900 font-semibold flex-1">{trip.departure}</span>
+            <span className="text-sm text-slate-600 font-medium">
               {format(new Date(trip.departureTime), 'HH:mm', { locale: fr })}
             </span>
           </div>
           <div className="w-px h-6 bg-slate-300 ml-1.5"></div>
           <div className="flex items-center space-x-3">
             <div className="w-3 h-3 bg-eco-blue rounded-full"></div>
-            <span className="text-slate-900 font-medium flex-1">{trip.destination}</span>
-            <span className="text-sm text-slate-500">
+            <span className="text-slate-900 font-semibold flex-1">{trip.destination}</span>
+            <span className="text-sm text-slate-600 font-medium">
               {format(new Date(trip.arrivalTime), 'HH:mm', { locale: fr })}
             </span>
           </div>
         </div>
 
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4 text-sm text-slate-600">
+          <div className="flex items-center space-x-4 text-sm text-slate-700 font-medium">
             <span>
               {format(new Date(trip.departureTime), 'dd MMM', { locale: fr })}
             </span>
