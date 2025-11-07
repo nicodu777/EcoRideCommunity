@@ -2,6 +2,7 @@ import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMess
 import { db } from "./db";
 import { eq, and, like, sql, desc, count, gte, asc } from "drizzle-orm";
 import { pool } from "./db";
+import * as bcrypt from "bcryptjs";
 
 export interface IStorage {
   // User operations
@@ -82,20 +83,24 @@ export class MemStorage implements IStorage {
   private trips: Map<number, Trip>;
   private bookings: Map<number, Booking>;
   private ratings: Map<number, Rating>;
+  private employees: Map<number, Employee>;
   private currentUserId: number;
   private currentTripId: number;
   private currentBookingId: number;
   private currentRatingId: number;
+  private currentEmployeeId: number;
 
   constructor() {
     this.users = new Map();
     this.trips = new Map();
     this.bookings = new Map();
     this.ratings = new Map();
+    this.employees = new Map();
     this.currentUserId = 1;
     this.currentTripId = 1;
     this.currentBookingId = 1;
     this.currentRatingId = 1;
+    this.currentEmployeeId = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -312,6 +317,23 @@ export class MemStorage implements IStorage {
     sampleTrips.forEach(trip => {
       this.trips.set(trip.id, trip);
     });
+
+    // ⚠️ DEMO ONLY - Create default admin employee account
+    // TODO: Remove this in production and use secure credential management
+    // Password: Admin123! (hashed with bcrypt)
+    const adminEmployee: Employee = {
+      id: this.currentEmployeeId++,
+      email: "admin@ecoride.com",
+      password: bcrypt.hashSync("Admin123!", 10), // Synchronous hashing for constructor
+      firstName: "Admin",
+      lastName: "EcoRide",
+      role: "admin",
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.employees.set(adminEmployee.id, adminEmployee);
   }
 
   // User operations
@@ -566,6 +588,186 @@ export class MemStorage implements IStorage {
   async createChatMessage(messageData: any): Promise<any> {
     // Pour MemStorage, on ne stocke pas les messages pour le moment
     return { id: Date.now(), ...messageData, createdAt: new Date() };
+  }
+
+  // Employee operations
+  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+    const id = this.currentEmployeeId++;
+    const now = new Date();
+    const employee: Employee = {
+      ...insertEmployee,
+      id,
+      isActive: true,
+      lastLoginAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.employees.set(id, employee);
+    return employee;
+  }
+
+  async getEmployee(id: number): Promise<Employee | undefined> {
+    return this.employees.get(id);
+  }
+
+  async getEmployeeByEmail(email: string): Promise<Employee | undefined> {
+    return Array.from(this.employees.values()).find(emp => emp.email === email);
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    return Array.from(this.employees.values());
+  }
+
+  async updateEmployee(id: number, updates: Partial<Employee>): Promise<Employee | undefined> {
+    const employee = this.employees.get(id);
+    if (!employee) return undefined;
+    
+    const updatedEmployee = { 
+      ...employee, 
+      ...updates,
+      updatedAt: new Date()
+    };
+    this.employees.set(id, updatedEmployee);
+    return updatedEmployee;
+  }
+
+  async deactivateEmployee(id: number): Promise<boolean> {
+    const employee = this.employees.get(id);
+    if (!employee) return false;
+    
+    employee.isActive = false;
+    employee.updatedAt = new Date();
+    this.employees.set(id, employee);
+    return true;
+  }
+
+  async updateEmployeeLastLogin(id: number): Promise<void> {
+    const employee = this.employees.get(id);
+    if (employee) {
+      employee.lastLoginAt = new Date();
+      employee.updatedAt = new Date();
+      this.employees.set(id, employee);
+    }
+  }
+
+  // Stub methods for IStorage compliance (not needed for MemStorage demo)
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async suspendUser(id: number): Promise<boolean> {
+    const user = this.users.get(id);
+    if (!user) return false;
+    user.isSuspended = true;
+    this.users.set(id, user);
+    return true;
+  }
+
+  async getTripWithDetails(id: number): Promise<TripWithDetails | undefined> {
+    const trip = await this.getTripWithDriver(id);
+    if (!trip) return undefined;
+    
+    // Return basic trip details without bookings for MemStorage
+    return {
+      ...trip,
+      bookings: [],
+    } as TripWithDetails;
+  }
+
+  async startTrip(id: number, driverId: number): Promise<Trip | undefined> {
+    const trip = this.trips.get(id);
+    if (!trip || trip.driverId !== driverId) return undefined;
+    
+    trip.status = 'started';
+    trip.startedAt = new Date();
+    this.trips.set(id, trip);
+    return trip;
+  }
+
+  async completeTrip(id: number, driverId: number): Promise<Trip | undefined> {
+    const trip = this.trips.get(id);
+    if (!trip || trip.driverId !== driverId) return undefined;
+    
+    trip.status = 'completed';
+    trip.completedAt = new Date();
+    this.trips.set(id, trip);
+    return trip;
+  }
+
+  async getPendingRatings(): Promise<Rating[]> {
+    return Array.from(this.ratings.values()).filter(r => r.isApproved === null);
+  }
+
+  async approveRating(id: number, employeeId: number): Promise<Rating | undefined> {
+    const rating = this.ratings.get(id);
+    if (!rating) return undefined;
+    
+    rating.isApproved = true;
+    rating.reviewedBy = employeeId;
+    rating.reviewedAt = new Date();
+    this.ratings.set(id, rating);
+    
+    await this.updateUserRating(rating.rateeId);
+    return rating;
+  }
+
+  async rejectRating(id: number, employeeId: number): Promise<Rating | undefined> {
+    const rating = this.ratings.get(id);
+    if (!rating) return undefined;
+    
+    rating.isApproved = false;
+    rating.reviewedBy = employeeId;
+    rating.reviewedAt = new Date();
+    this.ratings.set(id, rating);
+    return rating;
+  }
+
+  async createTripIssue(issue: InsertTripIssue): Promise<TripIssue> {
+    return {} as TripIssue; // Stub for demo
+  }
+
+  async getTripIssues(): Promise<TripIssue[]> {
+    return []; // Stub for demo
+  }
+
+  async resolveTripIssue(id: number, employeeId: number, resolution: string): Promise<TripIssue | undefined> {
+    return undefined; // Stub for demo
+  }
+
+  async createPlatformEarning(earning: InsertPlatformEarnings): Promise<PlatformEarnings> {
+    return {} as PlatformEarnings; // Stub for demo
+  }
+
+  async getDailyEarnings(): Promise<{ date: string; amount: string; trips: number }[]> {
+    return []; // Stub for demo
+  }
+
+  async getTotalEarnings(): Promise<string> {
+    return "0.00"; // Stub for demo
+  }
+
+  async getDailyTripCounts(): Promise<{ date: string; count: number }[]> {
+    return []; // Stub for demo
+  }
+
+  async getUserReports(): Promise<any[]> {
+    return []; // Stub for demo
+  }
+
+  async createUserReport(report: any): Promise<any> {
+    return {}; // Stub for demo
+  }
+
+  async reviewUserReport(id: number, reviewerId: number, status: string, resolution: string): Promise<any> {
+    return {}; // Stub for demo
+  }
+
+  async getAdminActions(): Promise<any[]> {
+    return []; // Stub for demo
+  }
+
+  async logAdminAction(action: any): Promise<any> {
+    return {}; // Stub for demo
   }
 }
 
