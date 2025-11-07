@@ -23,6 +23,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "User already exists" });
       }
 
+      // Auto-assign admin role if email is admin@ecoride.com
+      if (userData.email === "admin@ecoride.com") {
+        userData.role = "admin";
+      }
+
       const user = await storage.createUser(userData);
       res.status(201).json(user);
     } catch (error) {
@@ -34,6 +39,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/firebase/:uid", async (req, res) => {
     try {
       let user = await storage.getUserByFirebaseUid(req.params.uid);
+      
+      // Si l'utilisateur existe, vérifier si c'est admin@ecoride.com et mettre à jour le rôle
+      if (user && user.email === "admin@ecoride.com" && user.role !== "admin") {
+        user = await storage.updateUser(user.id, { role: "admin" });
+      }
       
       // Si l'utilisateur n'existe pas, on le crée avec des données par défaut
       if (!user) {
@@ -53,6 +63,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Route pour mettre à jour le rôle d'un utilisateur (pour admin uniquement)
+  app.patch("/api/users/:id/role", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { role } = req.body;
+      
+      if (!["passenger", "driver", "admin"].includes(role)) {
+        return res.status(400).json({ message: "Rôle invalide" });
+      }
+
+      const user = await storage.updateUser(userId, { role });
+      if (!user) {
+        return res.status(404).json({ message: "Utilisateur non trouvé" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Erreur serveur" });
+    }
+  });
+
 
   app.get("/api/users/:id", async (req, res) => {
     try {
