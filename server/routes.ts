@@ -40,6 +40,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let user = await storage.getUserByFirebaseUid(req.params.uid);
       
+      // Correction spéciale : Si c'est le UID du compte admin, le corriger
+      if (req.params.uid === "0Kn4RzhaOmgo1jFG5t97cils05o1" && user) {
+        user = await storage.updateUser(user.id, { 
+          email: "admin@ecoride.com",
+          firstName: "Admin",
+          lastName: "EcoRide",
+          role: "admin"
+        });
+      }
+      
       // Si l'utilisateur existe, vérifier si c'est admin@ecoride.com et mettre à jour le rôle
       if (user && user.email === "admin@ecoride.com" && user.role !== "admin") {
         user = await storage.updateUser(user.id, { role: "admin" });
