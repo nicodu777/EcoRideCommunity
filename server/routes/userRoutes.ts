@@ -53,18 +53,19 @@ router.post("/", async (req: Request, res: Response) => {
 /**
  * GET /api/users/firebase/:uid
  * Récupère un utilisateur par son UID Firebase
- * Crée automatiquement un profil par défaut si non existant
+ * NE crée PAS automatiquement l'utilisateur (évite conflit avec POST /api/users)
  */
 router.get("/firebase/:uid", async (req: Request, res: Response) => {
   try {
     const { uid } = req.params;
     
     // Récupération via le service (qui gère la logique admin)
-    let user = await userService.getUserByFirebaseUid(uid);
+    const user = await userService.getUserByFirebaseUid(uid);
     
-    // Si l'utilisateur n'existe pas, créer un profil par défaut
+    // Si l'utilisateur n'existe pas, retourner 404
+    // Le frontend doit appeler POST /api/users pour créer l'utilisateur
     if (!user) {
-      user = await userService.createDefaultUser(uid);
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
     
     res.json(user);

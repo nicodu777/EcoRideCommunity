@@ -39,8 +39,13 @@ export class AuthService {
               profile,
             };
             console.log("User profile loaded:", profile);
+          } else if (response.status === 404) {
+            // Utilisateur pas encore créé dans notre BDD (en cours d'inscription)
+            // On garde juste l'utilisateur Firebase, le profil sera créé par register()
+            console.log("User not yet in database, waiting for registration to complete");
+            this.currentUser = firebaseUser as AuthUser;
           } else {
-            console.warn("No backend profile found, using Firebase user only");
+            console.warn("Backend error, using Firebase user only");
             this.currentUser = firebaseUser as AuthUser;
           }
         } catch (error) {
