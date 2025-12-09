@@ -1,34 +1,88 @@
 /**
+ * ====================================================================
  * UserService - Couche de logique métier pour les utilisateurs
+ * ====================================================================
  * 
- * Cette classe contient toute la logique métier liée aux utilisateurs :
- * - Validation des règles métier
- * - Orchestration des opérations
- * - Gestion des cas particuliers (ex: attribution du rôle admin)
+ * RÔLE DE CETTE CLASSE :
+ * Ce service contient TOUTE la logique métier liée aux utilisateurs.
+ * C'est ici qu'on applique les règles de gestion de l'application.
  * 
- * Principe POO : Encapsulation de la logique métier dans une classe dédiée
- * Les routes appellent cette classe, jamais directement le repository
+ * PRINCIPE POO - ENCAPSULATION :
+ * - Les routes appellent UNIQUEMENT les méthodes de ce service
+ * - Le service orchestre les opérations et applique les règles métier
+ * - Le service délègue l'accès aux données au Repository
+ * 
+ * EXEMPLES DE RÈGLES MÉTIER GÉRÉES ICI :
+ * - Attribution automatique du rôle admin pour admin@ecoride.com
+ * - Correction du profil pour le compte admin spécifique (UID Firebase connu)
+ * - Validation des rôles autorisés
+ * - Création d'utilisateur par défaut si non existant
+ * 
+ * FLUX DE DONNÉES :
+ * Route (userRoutes.ts) → Service (ce fichier) → Repository (UserRepository.ts)
+ * 
+ * AVANTAGES :
+ * 1. La logique métier est centralisée et facile à tester
+ * 2. Les routes restent simples et ne contiennent que de la gestion HTTP
+ * 3. On peut réutiliser la logique métier depuis plusieurs endroits
+ * ====================================================================
  */
 
 import { type User, type InsertUser } from "@shared/schema";
 import { userRepository, UserRepository } from "../repositories/UserRepository";
 
-// Constantes métier
+/**
+ * CONSTANTES MÉTIER
+ * 
+ * Ces valeurs sont utilisées pour la logique de gestion du compte admin.
+ * En les déclarant comme constantes, on évite les erreurs de frappe
+ * et on centralise leur définition.
+ */
+
+// Email du compte administrateur principal de la plateforme
 const ADMIN_EMAIL = "admin@ecoride.com";
+
+// UID Firebase du compte admin (utilisé pour correction automatique)
 const ADMIN_FIREBASE_UID = "0Kn4RzhaOmgo1jFG5t97cils05o1";
+
+// Liste des rôles valides dans l'application
+// "as const" rend ce tableau immuable et permet le typage strict
 const ROLES_VALIDES = ["passenger", "driver", "admin"] as const;
 
+/**
+ * Classe UserService
+ * 
+ * Gère toute la logique métier des utilisateurs.
+ * Utilise le pattern d'injection de dépendances pour la testabilité.
+ */
 export class UserService {
+  
+  /**
+   * Référence vers le repository d'accès aux données
+   * Déclaré en privé pour respecter l'encapsulation POO
+   */
   private repository: UserRepository;
 
+  /**
+   * Constructeur avec injection de dépendances
+   * 
+   * L'injection de dépendances permet de :
+   * - Tester facilement en passant un mock repository
+   * - Changer d'implémentation sans modifier ce code
+   * 
+   * @param repository - Le repository à utiliser (par défaut: userRepository)
+   */
   constructor(repository: UserRepository = userRepository) {
     this.repository = repository;
   }
 
   /**
    * Récupère un utilisateur par son ID
-   * @param id - Identifiant de l'utilisateur
-   * @returns L'utilisateur ou undefined
+   * 
+   * Méthode simple sans logique métier particulière.
+   * 
+   * @param id - L'identifiant de l'utilisateur
+   * @returns L'utilisateur ou undefined si non trouvé
    */
   async getUserById(id: number): Promise<User | undefined> {
     return this.repository.findById(id);
@@ -36,19 +90,29 @@ export class UserService {
 
   /**
    * Récupère un utilisateur par son UID Firebase
-   * Applique la logique métier pour le compte admin
-   * @param firebaseUid - UID Firebase de l'utilisateur
-   * @returns L'utilisateur (créé automatiquement si nécessaire)
+   * 
+   * LOGIQUE MÉTIER IMPORTANTE :
+   * Cette méthode applique des règles spéciales pour le compte admin :
+   * 1. Si c'est l'UID admin connu, on corrige automatiquement le profil
+   * 2. Si l'email est admin@ecoride.com, on s'assure que le rôle est "admin"
+   * 
+   * C'est un exemple de règle métier centralisée dans le service.
+   * 
+   * @param firebaseUid - L'UID Firebase de l'utilisateur
+   * @returns L'utilisateur (avec corrections éventuelles)
    */
   async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
+    // Récupération de l'utilisateur via le repository
     let user = await this.repository.findByFirebaseUid(firebaseUid);
     
-    // Règle métier : Si c'est le compte admin, corriger automatiquement le profil
+    // RÈGLE MÉTIER 1 : Correction automatique du compte admin
+    // Si c'est le UID Firebase connu de l'admin, on s'assure que le profil est correct
     if (firebaseUid === ADMIN_FIREBASE_UID && user) {
       user = await this.promoteToAdmin(user);
     }
     
-    // Règle métier : Si l'email est admin@ecoride.com, attribuer le rôle admin
+    // RÈGLE MÉTIER 2 : Attribution du rôle admin par email
+    // Si l'utilisateur a l'email admin mais pas le rôle, on le corrige
     if (user && user.email === ADMIN_EMAIL && user.role !== "admin") {
       user = await this.repository.update(user.id, { role: "admin" });
     }
@@ -58,7 +122,8 @@ export class UserService {
 
   /**
    * Récupère un utilisateur par son email
-   * @param email - Email de l'utilisateur
+   * 
+   * @param email - L'email de l'utilisateur
    * @returns L'utilisateur ou undefined
    */
   async getUserByEmail(email: string): Promise<User | undefined> {
@@ -67,46 +132,62 @@ export class UserService {
 
   /**
    * Récupère tous les utilisateurs (pour l'administration)
-   * @returns Liste de tous les utilisateurs
+   * 
+   * Utilisé dans le tableau de bord admin pour lister tous les membres.
+   * 
+   * @returns La liste de tous les utilisateurs de la plateforme
    */
   async getAllUsers(): Promise<User[]> {
     return this.repository.findAll();
   }
 
   /**
-   * Crée un nouvel utilisateur avec les règles métier
-   * @param userData - Données de l'utilisateur
+   * Crée un nouvel utilisateur avec application des règles métier
+   * 
+   * LOGIQUE MÉTIER :
+   * 1. Vérifie que l'utilisateur n'existe pas déjà (unicité)
+   * 2. Attribue automatiquement le rôle admin si email = admin@ecoride.com
+   * 
+   * @param userData - Les données du nouvel utilisateur
    * @returns L'utilisateur créé
-   * @throws Error si l'utilisateur existe déjà
+   * @throws Error("USER_ALREADY_EXISTS") si l'utilisateur existe déjà
    */
   async createUser(userData: InsertUser): Promise<User> {
-    // Vérification : l'utilisateur existe-t-il déjà ?
+    // RÈGLE MÉTIER : Unicité des comptes Firebase
+    // On vérifie qu'aucun utilisateur n'existe avec ce UID Firebase
     const existingUser = await this.repository.findByFirebaseUid(userData.firebaseUid);
     if (existingUser) {
       throw new Error("USER_ALREADY_EXISTS");
     }
 
-    // Règle métier : Attribution automatique du rôle admin si email admin
+    // RÈGLE MÉTIER : Attribution automatique du rôle admin
+    // Si l'email est celui de l'admin, on force le rôle "admin"
     if (userData.email === ADMIN_EMAIL) {
       userData.role = "admin";
     }
 
+    // Délégation de la création au repository
     return this.repository.create(userData);
   }
 
   /**
-   * Crée un utilisateur par défaut pour un nouveau compte Firebase
-   * @param firebaseUid - UID Firebase du compte
+   * Crée un utilisateur avec des valeurs par défaut
+   * 
+   * Appelé quand un utilisateur Firebase n'a pas encore de profil dans notre BDD.
+   * On crée un profil minimal pour permettre l'utilisation de l'application.
+   * 
+   * @param firebaseUid - L'UID Firebase du nouveau compte
    * @returns L'utilisateur créé avec les valeurs par défaut
    */
   async createDefaultUser(firebaseUid: string): Promise<User> {
+    // Données par défaut pour un nouvel utilisateur
     const defaultUserData: InsertUser = {
       firebaseUid,
-      email: `user-${firebaseUid}@ecoride.com`,
+      email: `user-${firebaseUid}@ecoride.com`, // Email temporaire
       firstName: "Utilisateur",
       lastName: "EcoRide",
       phone: "",
-      role: "passenger"
+      role: "passenger" // Rôle par défaut : passager
     };
 
     return this.repository.create(defaultUserData);
@@ -114,8 +195,9 @@ export class UserService {
 
   /**
    * Met à jour les informations d'un utilisateur
-   * @param id - ID de l'utilisateur
-   * @param updates - Champs à mettre à jour
+   * 
+   * @param id - L'ID de l'utilisateur à modifier
+   * @param updates - Les champs à mettre à jour
    * @returns L'utilisateur mis à jour ou undefined
    */
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
@@ -124,13 +206,18 @@ export class UserService {
 
   /**
    * Change le rôle d'un utilisateur
-   * @param userId - ID de l'utilisateur
-   * @param newRole - Nouveau rôle à attribuer
+   * 
+   * LOGIQUE MÉTIER : Validation du rôle
+   * Seuls les rôles définis dans ROLES_VALIDES sont autorisés.
+   * 
+   * @param userId - L'ID de l'utilisateur
+   * @param newRole - Le nouveau rôle à attribuer
    * @returns L'utilisateur mis à jour
-   * @throws Error si le rôle est invalide
+   * @throws Error("INVALID_ROLE") si le rôle n'est pas valide
    */
   async changeUserRole(userId: number, newRole: string): Promise<User | undefined> {
-    // Validation du rôle
+    // RÈGLE MÉTIER : Validation du rôle
+    // On vérifie que le nouveau rôle fait partie des rôles autorisés
     if (!ROLES_VALIDES.includes(newRole as any)) {
       throw new Error("INVALID_ROLE");
     }
@@ -140,16 +227,24 @@ export class UserService {
 
   /**
    * Suspend un utilisateur (action de modération)
-   * @param userId - ID de l'utilisateur à suspendre
-   * @returns true si réussi
+   * 
+   * Appelé par les employés ou admins pour bloquer un compte problématique.
+   * 
+   * @param userId - L'ID de l'utilisateur à suspendre
+   * @returns true si la suspension a réussi
    */
   async suspendUser(userId: number): Promise<boolean> {
     return this.repository.suspend(userId);
   }
 
   /**
-   * Promeut un utilisateur au rôle admin (méthode privée)
-   * Utilisée pour le compte admin spécifique
+   * Méthode privée : Promeut un utilisateur au rôle admin
+   * 
+   * Méthode interne utilisée pour corriger le profil du compte admin.
+   * Déclarée privée car elle ne doit pas être appelée de l'extérieur.
+   * 
+   * @param user - L'utilisateur à promouvoir
+   * @returns L'utilisateur avec le rôle admin
    */
   private async promoteToAdmin(user: User): Promise<User | undefined> {
     return this.repository.update(user.id, {
@@ -161,5 +256,10 @@ export class UserService {
   }
 }
 
-// Export d'une instance singleton pour utilisation dans les routes
+/**
+ * Instance singleton du service
+ * 
+ * On exporte une seule instance qui sera utilisée dans les routes.
+ * Pattern Singleton : Une seule instance partagée dans toute l'application.
+ */
 export const userService = new UserService();

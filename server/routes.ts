@@ -1,11 +1,33 @@
+/**
+ * ====================================================================
+ * Routes principales de l'application EcoRide
+ * ====================================================================
+ * 
+ * Ce fichier enregistre toutes les routes API de l'application.
+ * 
+ * ARCHITECTURE REFACTORISÉE :
+ * - Les routes Users utilisent maintenant le nouveau système POO (routes → service → repository)
+ * - Les autres routes (Trips, Bookings, etc.) seront refactorisées progressivement
+ * 
+ * NOUVEAU FLUX POUR LES UTILISATEURS :
+ * Requête HTTP → userRoutes.ts → UserService.ts → UserRepository.ts → Storage
+ * ====================================================================
+ */
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertUserSchema, insertTripSchema, insertBookingSchema, insertRatingSchema, insertChatMessageSchema, insertEmployeeSchema } from "@shared/schema";
+import { insertTripSchema, insertBookingSchema, insertRatingSchema, insertChatMessageSchema, insertEmployeeSchema } from "@shared/schema";
 import { z } from "zod";
 import { wsManager } from "./websocket";
 import { hashPassword, verifyPassword, generateEmployeeToken, employeeAuth, hasPermission } from "./employeeAuth";
 
+// ====================================================================
+// IMPORT DES NOUVELLES ROUTES REFACTORISÉES (Architecture POO)
+// ====================================================================
+import userRoutes from "./routes/userRoutes";
+
+// Schéma de validation pour la recherche de trajets
 const searchTripSchema = z.object({
   departure: z.string().min(1),
   destination: z.string().min(1),
@@ -13,104 +35,18 @@ const searchTripSchema = z.object({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // User routes
-  app.post("/api/users", async (req, res) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByFirebaseUid(userData.firebaseUid);
-      
-      if (existingUser) {
-        return res.status(409).json({ message: "User already exists" });
-      }
+  
+  // ====================================================================
+  // ROUTES UTILISATEURS - REFACTORISÉES EN POO
+  // ====================================================================
+  // Les routes /api/users sont maintenant gérées par le nouveau système :
+  // userRoutes.ts → UserService.ts → UserRepository.ts
+  // Cela respecte le principe de séparation des responsabilités
+  app.use("/api/users", userRoutes);
 
-      // Auto-assign admin role if email is admin@ecoride.com
-      if (userData.email === "admin@ecoride.com") {
-        userData.role = "admin";
-      }
-
-      const user = await storage.createUser(userData);
-      res.status(201).json(user);
-    } catch (error) {
-      console.error("Error creating user:", error);
-      res.status(400).json({ message: "Invalid user data" });
-    }
-  });
-
-  app.get("/api/users/firebase/:uid", async (req, res) => {
-    try {
-      let user = await storage.getUserByFirebaseUid(req.params.uid);
-      
-      // Correction spéciale : Si c'est le UID du compte admin, le corriger
-      if (req.params.uid === "0Kn4RzhaOmgo1jFG5t97cils05o1" && user) {
-        user = await storage.updateUser(user.id, { 
-          email: "admin@ecoride.com",
-          firstName: "Admin",
-          lastName: "EcoRide",
-          role: "admin"
-        });
-      }
-      
-      // Si l'utilisateur existe, vérifier si c'est admin@ecoride.com et mettre à jour le rôle
-      if (user && user.email === "admin@ecoride.com" && user.role !== "admin") {
-        user = await storage.updateUser(user.id, { role: "admin" });
-      }
-      
-      // Si l'utilisateur n'existe pas, on le crée avec des données par défaut
-      if (!user) {
-        user = await storage.createUser({
-          firebaseUid: req.params.uid,
-          email: `user-${req.params.uid}@ecoride.com`,
-          firstName: "Utilisateur",
-          lastName: "EcoRide",
-          phone: "",
-          role: "passenger"
-        });
-      }
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Route pour mettre à jour le rôle d'un utilisateur (pour admin uniquement)
-  app.patch("/api/users/:id/role", async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      const { role } = req.body;
-      
-      if (!["passenger", "driver", "admin"].includes(role)) {
-        return res.status(400).json({ message: "Rôle invalide" });
-      }
-
-      const user = await storage.updateUser(userId, { role });
-      if (!user) {
-        return res.status(404).json({ message: "Utilisateur non trouvé" });
-      }
-
-      res.json(user);
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      res.status(500).json({ message: "Erreur serveur" });
-    }
-  });
-
-
-  app.get("/api/users/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const user = await storage.getUser(id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
+  // ====================================================================
+  // ROUTES TRAJETS - À refactoriser ultérieurement
+  // ====================================================================
   // Trip routes
   app.get("/api/trips", async (req, res) => {
     try {
