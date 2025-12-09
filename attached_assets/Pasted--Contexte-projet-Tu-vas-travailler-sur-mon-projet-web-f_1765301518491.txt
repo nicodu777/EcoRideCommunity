@@ -1,0 +1,151 @@
+
+Contexte projet
+---------------
+Tu vas travailler sur mon projet web (front + back) développé pour une évaluation Studi.
+L’évaluateur m’a fait plusieurs remarques :
+- pas de vraie programmation orientée objet dans le backend ;
+- mauvaise séparation des responsabilités (routes, logique métier, accès aux données mélangés) ;
+- HTML / CSS non séparés (beaucoup de style inline ou de CSS collé dans les composants) ;
+- code difficile à maintenir (peu typé, peu commenté, structure de dossiers confuse) ;
+- manque de scripts propres pour la base de données (création + jeu de données).
+
+Objectif
+--------
+Je veux que tu m’aides à rendre le projet plus propre, plus structuré et conforme aux bonnes pratiques :
+- backend organisé en couches (routes / services métiers / accès aux données) en programmation orientée objet ;
+- frontend avec composants clairs et séparation stricte structure / style ;
+- code plus lisible (typages, commentaires, noms clairs) ;
+- scripts SQL / ORM propres avec un minimum de données de test.
+
+Important général
+-----------------
+- NE TOUCHE PAS aux clés secrètes, variables d’environnement ou identifiants sensibles.
+- Ne casse pas les points d’entrée existants (commandes npm, structure globale du projet).
+- Quand tu modifies un fichier, commente ce que tu fais (en français) pour que je puisse l’expliquer à l’oral.
+- Si tu dois faire un gros refactor, propose-le fichier par fichier.
+
+1) Réorganisation du backend (programmation orientée objet)
+-----------------------------------------------------------
+1. Analyse le dossier serveur (ex: `server`, `src/server`, ou similaire) et repère :
+   - les fichiers de routes (API REST, par ex. `routes.ts`, `app.ts`, `index.ts`) ;
+   - le code métier mélangé dans les routes ;
+   - le code qui accède directement à la base (SQL, ORM, Requête Drizzle, etc.).
+
+2. Crée une structure en couches, par exemple :
+   - `server/routes`     : uniquement définition des routes Express (ou autre framework HTTP) ;
+   - `server/services`   : classes métiers en POO (ex: `RideService`, `UserService`, `ReservationService`) ;
+   - `server/repositories` ou `server/db` : fonctions de lecture/écriture en base, ou classes de type `RideRepository`.
+
+3. Pour chaque ressource principale (ex: utilisateurs, trajets, réservations, snacks, commandes selon le projet) :
+   - crée une classe de service orientée objet, par ex. :
+     - `class RideService { createRide(...); listRides(...); updateRide(...); }`
+     - `class UserService { getProfile(...); updateProfile(...); }`
+   - déplace la logique métier des routes vers ces classes de services ;
+   - fais en sorte que les routes appellent uniquement les méthodes de ces services.
+
+4. Pour l’accès aux données (SQL / ORM type Drizzle / Neon / autre) :
+   - centralise tout dans des modules dédiés (par ex. `rideRepository.ts`, `userRepository.ts`) ;
+   - aucune route ne doit appeler directement l’ORM ou envoyer du SQL brut ;
+   - les services appellent les repositories, et les repositories parlent à la base.
+
+5. Ajoute du typage clair :
+   - utilise des interfaces ou types TypeScript pour les entités principales (User, Ride, Order, Snack, etc.) ;
+   - tape les paramètres et valeurs de retour des méthodes de service.
+
+6. Ajoute des commentaires structurés :
+   - en haut de chaque classe de service : un commentaire expliquant son rôle ;
+   - en haut des routes critiques : un commentaire décrivant ce que fait l’endpoint.
+
+2) Séparation du HTML / JSX et du CSS
+-------------------------------------
+1. Scanne le frontend (ex: dossier `client`, `src`, `app`, etc.) :
+   - repère les composants ou pages où le style est inline ou mélangé (style={{...}}, balises `<style>`, CSS énorme dans un seul fichier).
+
+2. Pour ces composants :
+   - extrait le style dans des fichiers dédiés :
+     - soit en CSS/SCSS modules (ex: `Home.module.css`) ;
+     - soit en fichiers `*.css` importés proprement ;
+   - enlève les `style={{ ... }}` au maximum, sauf cas particuliers.
+
+3. Organisation des composants :
+   - crée un dossier clair pour les pages (ex: `pages` ou `screens`) ;
+   - crée un dossier `components` pour les composants réutilisables (boutons, cartes, formulaires, header, footer, etc.) ;
+   - isole les gros blocs d’UI en composants plus petits et réutilisables.
+
+4. Noms et lisibilité :
+   - renomme les composants avec des noms explicites (ex: `RideCard`, `RideList`, `OrderSummary`, `SnackGrid`) ;
+   - évite les noms génériques comme `Component1`, `Test`, etc.
+
+3) Amélioration de la qualité du code
+-------------------------------------
+1. Nettoyage général :
+   - supprime le code mort / console.log inutiles / imports non utilisés ;
+   - harmonise la gestion des erreurs (try/catch côté backend, affichage clair de messages côté frontend).
+
+2. Gestion des réponses API :
+   - pour chaque route, assure-toi que :
+     - en cas de succès → HTTP 200/201 avec un JSON structuré ;
+     - en cas d’erreur prévue (validation, droits, etc.) → statut adapté (400, 401, 403, 404, 409…) + message clair ;
+     - en cas d’erreur serveur → statut 500 + message générique.
+
+3. Validation des données :
+   - utilise un schéma de validation (ex: `zod`) si déjà présent dans le projet ;
+   - centralise les schémas dans un dossier `validation` ou dans les services concernés.
+
+4) Base de données et jeux de données
+-------------------------------------
+1. Repère le fichier de configuration base de données (par ex. `db.ts`, `database.ts`, config Drizzle, Neon, Prisma, etc.).
+   - assure-toi que la connexion est bien isolée dans un module unique ;
+   - exporte proprement l’instance de base (`db`) pour le reste du backend.
+
+2. Repère le script SQL (ou migration) qui crée les tables principales.
+   - si possible, crée un fichier de seed ou un module TypeScript `seed.ts` qui insère :
+     - quelques utilisateurs ;
+     - quelques trajets / snacks ;
+     - quelques réservations / commandes de test.
+   - garde ce seed simple mais suffisant pour montrer l’usage de la base.
+
+3. Ajoute des commentaires au script SQL ou au fichier de seed pour expliquer :
+   - à quoi sert chaque table ;
+   - à quoi servent les données de test (ex: compte admin, compte utilisateur classique, etc.).
+
+5) Websockets / temps réel (si existant)
+----------------------------------------
+1. Si le projet utilise des websockets :
+   - isole la logique websocket dans un fichier dédié (par ex. `ws.ts`, `realtime.ts`) ;
+   - déplace la logique métier dans les services, comme le reste du backend ;
+   - fais en sorte que le handler websocket délègue aux services (ex: mise à jour de statut, nouvelle réservation, etc.).
+
+2. Ajoute des commentaires pour :
+   - expliquer quels événements sont émis ;
+   - quelles données partent dans chaque message.
+
+6) Comment documenter dans le code
+----------------------------------
+À chaque fois que tu fais une modification importante :
+- ajoute un commentaire au-dessus pour expliquer :
+  - pourquoi c’est structuré comme ça ;
+  - à quelle exigence de bonnes pratiques ça répond (POO, séparation des couches, etc.).
+- ne fais pas de pavés de texte, mais des phrases courtes, en français.
+
+Limites pour toi (IA Replit)
+----------------------------
+- Ne crée PAS de schémas UML, MCD/MLD ou maquettes graphiques : je les ferai en dehors de Replit.
+- Ne crée PAS de fichiers Docker ni de pipelines CI/CD : je les gérerai moi-même dans un autre outil ou à la main.
+- Ne touche pas à la configuration Git (branches, tags) : je gérerai ça en ligne de commande.
+- Concentre-toi uniquement sur :
+  - la structure du code,
+  - la qualité du code,
+  - l’organisation backend/front,
+  - la base de données côté code (pas l’infra).
+
+Plan d’action
+-------------
+1. Commence par m’afficher l’arborescence du projet et m’expliquer quelle structure tu proposes (dossiers, services, repositories, components).
+2. Ensuite, propose les modifications fichier par fichier, en m’expliquant à chaque fois ce que tu vas faire avant de changer le code.
+3. Quand la réorganisation backend est faite, passe au frontend (séparation HTML/CSS).
+4. Enfin, crée un ou plusieurs fichiers de seed pour la base de données avec quelques données d’exemple.
+
+Fin du brief
+------------
+Quand tu es prêt, commence par analyser le projet et explique-moi le plan de refactorisation que tu vas appliquer.
