@@ -1,4 +1,11 @@
 /**
+ * Refactor Users : Architecture POO (Routes → Services → Repository)
+ * Ce service gère la logique métier des utilisateurs.
+ */
+
+
+
+/**
  * ====================================================================
  * UserService - Couche de logique métier pour les utilisateurs
  * ====================================================================
