@@ -3,28 +3,51 @@
  * UserService - Couche de logique métier pour les utilisateurs
  * ====================================================================
  * 
+ * @file server/services/UserService.ts
+ * @author Refactorisation ECF Studi - Architecture POO
+ * @version 2.0.0
+ * @date Décembre 2024
+ * 
  * RÔLE DE CETTE CLASSE :
  * Ce service contient TOUTE la logique métier liée aux utilisateurs.
  * C'est ici qu'on applique les règles de gestion de l'application.
+ * 
+ * ARCHITECTURE EN COUCHES (Pattern MVC adapté) :
+ * ┌─────────────────┐
+ * │   userRoutes    │  ← Couche Présentation (HTTP)
+ * └────────┬────────┘
+ *          │ appelle
+ *          ▼
+ * ┌─────────────────┐
+ * │   UserService   │  ← Couche Métier (CE FICHIER)
+ * └────────┬────────┘
+ *          │ appelle
+ *          ▼
+ * ┌─────────────────┐
+ * │  UserRepository │  ← Couche Données (Accès BDD)
+ * └─────────────────┘
  * 
  * PRINCIPE POO - ENCAPSULATION :
  * - Les routes appellent UNIQUEMENT les méthodes de ce service
  * - Le service orchestre les opérations et applique les règles métier
  * - Le service délègue l'accès aux données au Repository
  * 
- * EXEMPLES DE RÈGLES MÉTIER GÉRÉES ICI :
- * - Attribution automatique du rôle admin pour admin@ecoride.com
- * - Correction du profil pour le compte admin spécifique (UID Firebase connu)
- * - Validation des rôles autorisés
- * - Création d'utilisateur par défaut si non existant
+ * PRINCIPE POO - INJECTION DE DÉPENDANCES :
+ * - Le repository est injecté via le constructeur
+ * - Permet de tester facilement avec un mock
+ * - Facilite le changement d'implémentation
  * 
- * FLUX DE DONNÉES :
- * Route (userRoutes.ts) → Service (ce fichier) → Repository (UserRepository.ts)
+ * RÈGLES MÉTIER IMPLÉMENTÉES :
+ * 1. Attribution automatique du rôle admin pour admin@ecoride.com
+ * 2. Validation des rôles autorisés (passenger, driver, admin)
+ * 3. Unicité des comptes Firebase (vérification avant création)
+ * 4. Attribution de 20 crédits à l'inscription (via storage)
  * 
- * AVANTAGES :
- * 1. La logique métier est centralisée et facile à tester
- * 2. Les routes restent simples et ne contiennent que de la gestion HTTP
- * 3. On peut réutiliser la logique métier depuis plusieurs endroits
+ * AVANTAGES DE CETTE ARCHITECTURE :
+ * 1. Séparation des responsabilités (Single Responsibility Principle)
+ * 2. Code testable unitairement grâce à l'injection de dépendances
+ * 3. Logique métier centralisée et réutilisable
+ * 4. Routes "fines" sans logique complexe
  * ====================================================================
  */
 
