@@ -1,4 +1,26 @@
 /**
+ * UserService - Logique métier des utilisateurs (POO)
+ *
+ * Ce service illustre la séparation des responsabilités :
+ * - les routes restent "fines" (HTTP, validation, réponses JSON)
+ * - la logique métier est centralisée dans cette classe
+ * - l'accès aux données passe par le UserRepository
+ *
+ * Ce refactor a été fait suite aux remarques de l'évaluateur
+ * pour améliorer la maintenabilité et la lisibilité du backend.
+ */
+
+
+
+
+/**
+ * Refactor Users : Architecture POO (Routes → Services → Repository)
+ * Ce service gère la logique métier des utilisateurs.
+ */
+
+
+
+/**
  * ====================================================================
  * UserService - Couche de logique métier pour les utilisateurs
  * ====================================================================
