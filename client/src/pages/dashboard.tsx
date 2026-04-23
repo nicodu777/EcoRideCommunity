@@ -23,9 +23,10 @@ import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 
 export default function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
+  const [authResolved, setAuthResolved] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState('trips');
@@ -33,9 +34,15 @@ export default function Dashboard() {
   const [selectedTripForChat, setSelectedTripForChat] = useState<number | null>(null);
 
   useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = authService.onAuthStateChanged((updatedUser) => {
+      setUser(updatedUser);
+      setAuthResolved(true);
     });
+
+    // Si l'utilisateur courant est déjà disponible, on considère l'auth comme résolue
+    if (authService.getCurrentUser() !== null) {
+      setAuthResolved(true);
+    }
 
     return unsubscribe;
   }, []);
@@ -220,7 +227,8 @@ export default function Dashboard() {
     }
   };
 
-  if (!user) {
+  // Spinner pendant que Firebase résout l'état d'authentification
+  if (!authResolved || (!user && !authResolved)) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <LoadingSpinner size="lg" />
@@ -228,12 +236,55 @@ export default function Dashboard() {
     );
   }
 
-  if (!user.profile) {
+  // Utilisateur non connecté
+  if (authResolved && !user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Chargement du profil...</h2>
-          <LoadingSpinner size="lg" />
+        <div className="text-center space-y-4">
+          <h2 className="text-xl font-bold text-slate-900">Vous n'êtes pas connecté</h2>
+          <p className="text-slate-600">Veuillez vous connecter pour accéder à votre tableau de bord.</p>
+          <Button onClick={() => setLocation("/auth/login")} className="bg-eco-green hover:bg-green-600">
+            Se connecter
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Utilisateur Firebase sans profil en base de données (inscription incomplète)
+  if (authResolved && user && !user.profile) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto px-4">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
+            <User className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900">Profil introuvable</h2>
+          <p className="text-slate-600">
+            Votre compte Firebase existe mais votre profil EcoRide est manquant.
+            Cela peut arriver si l'inscription n'a pas été finalisée.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={async () => {
+                await authService.logout();
+                setLocation("/auth/register");
+              }}
+              className="bg-eco-green hover:bg-green-600"
+            >
+              Créer un nouveau compte
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await authService.logout();
+                setLocation("/auth/login");
+              }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Se déconnecter
+            </Button>
+          </div>
         </div>
       </div>
     );
