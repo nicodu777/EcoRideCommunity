@@ -52,18 +52,19 @@ router.post("/", async (req: Request, res: Response) => {
 
 /**
  * GET /api/users/firebase/:uid
- * Récupère un utilisateur par son UID Firebase
- * NE crée PAS automatiquement l'utilisateur (évite conflit avec POST /api/users)
+ * Récupère un utilisateur par son UID Firebase.
+ * Accepte un paramètre ?email= optionnel pour la re-liaison automatique
+ * (cas où le compte Firebase a été recréé avec un nouvel UID).
  */
 router.get("/firebase/:uid", async (req: Request, res: Response) => {
   try {
     const { uid } = req.params;
+    // L'email est envoyé par le client pour permettre la re-liaison
+    const email = req.query.email as string | undefined;
     
-    // Récupération via le service (qui gère la logique admin)
-    const user = await userService.getUserByFirebaseUid(uid);
+    // Le service tente d'abord par UID, puis par email si nécessaire
+    const user = await userService.getUserByFirebaseUid(uid, email);
     
-    // Si l'utilisateur n'existe pas, retourner 404
-    // Le frontend doit appeler POST /api/users pour créer l'utilisateur
     if (!user) {
       return res.status(404).json({ message: "Utilisateur non trouvé" });
     }

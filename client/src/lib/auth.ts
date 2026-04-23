@@ -30,8 +30,12 @@ export class AuthService {
       if (firebaseUser) {
         console.log("Firebase user authenticated:", firebaseUser.uid);
         try {
-          // Get user profile from our backend
-          const response = await fetch(`/api/users/firebase/${firebaseUser.uid}`);
+          // Envoi de l'email en plus de l'UID pour permettre la re-liaison
+          // automatique si le compte Firebase a été recréé (nouvel UID, même email)
+          const emailParam = firebaseUser.email 
+            ? `?email=${encodeURIComponent(firebaseUser.email)}` 
+            : "";
+          const response = await fetch(`/api/users/firebase/${firebaseUser.uid}${emailParam}`);
           if (response.ok) {
             const profile = await response.json();
             this.currentUser = {

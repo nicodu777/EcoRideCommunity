@@ -21,6 +21,116 @@ import { AIRecommendations } from "@/components/analytics/ai-recommendations";
 import { MapIntegration } from "@/components/location/map-integration";
 import { FloatingChatButton } from "@/components/ui/floating-chat-button";
 
+/**
+ * Écran affiché quand l'utilisateur est authentifié Firebase
+ * mais n'a pas encore de profil en base de données.
+ * Permet de compléter l'inscription sans quitter l'app.
+ */
+function CompleteProfileScreen({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [role, setRole] = useState<"passenger" | "driver">("passenger");
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+
+  const handleComplete = async () => {
+    if (!firstName.trim() || !lastName.trim()) {
+      toast({ title: "Champs requis", description: "Veuillez renseigner votre prénom et nom.", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firebaseUid: user.uid,
+          email: user.email,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phone: "",
+          role,
+        }),
+      });
+      if (!response.ok) throw new Error("Erreur lors de la création du profil");
+      toast({ title: "Profil créé !", description: "Bienvenue sur EcoRide." });
+      // Recharger la page pour que auth.ts recharge le profil
+      window.location.reload();
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer le profil.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="w-full max-w-md mx-auto px-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <User className="w-5 h-5 text-yellow-600" />
+              <span>Complétez votre inscription</span>
+            </CardTitle>
+            <p className="text-sm text-slate-600">
+              Votre compte {user.email} est authentifié. Renseignez vos informations pour accéder à EcoRide.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium text-slate-700">Prénom</label>
+                <input
+                  className="mt-1 w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-eco-green"
+                  value={firstName}
+                  onChange={e => setFirstName(e.target.value)}
+                  placeholder="Jean"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700">Nom</label>
+                <input
+                  className="mt-1 w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-eco-green"
+                  value={lastName}
+                  onChange={e => setLastName(e.target.value)}
+                  placeholder="Dupont"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Je veux principalement</label>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole("passenger")}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-colors ${role === "passenger" ? "border-eco-green bg-green-50 text-eco-green" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                >
+                  Covoiturer en tant que passager
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("driver")}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-colors ${role === "driver" ? "border-eco-green bg-green-50 text-eco-green" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}
+                >
+                  Proposer des trajets (conducteur)
+                </button>
+              </div>
+            </div>
+            <Button onClick={handleComplete} disabled={loading} className="w-full bg-eco-green hover:bg-green-600">
+              {loading ? <LoadingSpinner size="sm" /> : "Accéder à mon compte"}
+            </Button>
+            <Button variant="ghost" onClick={onLogout} className="w-full text-slate-500">
+              <LogOut className="w-4 h-4 mr-2" />
+              Se connecter avec un autre compte
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
   const [authResolved, setAuthResolved] = useState(false);
@@ -243,7 +353,7 @@ export default function Dashboard() {
         <div className="text-center space-y-4">
           <h2 className="text-xl font-bold text-slate-900">Vous n'êtes pas connecté</h2>
           <p className="text-slate-600">Veuillez vous connecter pour accéder à votre tableau de bord.</p>
-          <Button onClick={() => setLocation("/auth/login")} className="bg-eco-green hover:bg-green-600">
+          <Button onClick={() => setLocation("/login")} className="bg-eco-green hover:bg-green-600">
             Se connecter
           </Button>
         </div>
@@ -253,41 +363,7 @@ export default function Dashboard() {
 
   // Utilisateur Firebase sans profil en base de données (inscription incomplète)
   if (authResolved && user && !user.profile) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md mx-auto px-4">
-          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto">
-            <User className="w-8 h-8 text-yellow-600" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900">Profil introuvable</h2>
-          <p className="text-slate-600">
-            Votre compte Firebase existe mais votre profil EcoRide est manquant.
-            Cela peut arriver si l'inscription n'a pas été finalisée.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button
-              onClick={async () => {
-                await authService.logout();
-                setLocation("/auth/register");
-              }}
-              className="bg-eco-green hover:bg-green-600"
-            >
-              Créer un nouveau compte
-            </Button>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                await authService.logout();
-                setLocation("/auth/login");
-              }}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Se déconnecter
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+    return <CompleteProfileScreen user={user} onLogout={async () => { await authService.logout(); setLocation("/login"); }} />;
   }
 
   return (

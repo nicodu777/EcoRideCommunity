@@ -112,34 +112,50 @@ export class UserService {
   }
 
   /**
-   * Récupère un utilisateur par son UID Firebase
-   * 
-   * LOGIQUE MÉTIER IMPORTANTE :
-   * Cette méthode applique des règles spéciales pour le compte admin :
-   * 1. Si c'est l'UID admin connu, on corrige automatiquement le profil
-   * 2. Si l'email est admin@ecoride.com, on s'assure que le rôle est "admin"
-   * 
-   * C'est un exemple de règle métier centralisée dans le service.
-   * 
-   * @param firebaseUid - L'UID Firebase de l'utilisateur
-   * @returns L'utilisateur (avec corrections éventuelles)
+   * Récupère (ou relie) un utilisateur par UID Firebase + email optionnel
+   *
+   * LOGIQUE MÉTIER :
+   * 1. Recherche d'abord par UID Firebase (cas normal)
+   * 2. Si non trouvé ET email fourni → cherche par email et met à jour l'UID
+   *    (cas où l'utilisateur a recréé son compte Firebase)
+   * 3. Garantit que admin@ecoride.com a toujours le rôle admin
+   *
+   * @param firebaseUid - Le nouvel UID Firebase
+   * @param email - L'email Firebase (optionnel, pour re-liaison)
    */
-  async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
-    // Récupération de l'utilisateur via le repository
+  async getUserByFirebaseUid(firebaseUid: string, email?: string): Promise<User | undefined> {
+    // Tentative 1 : recherche par UID Firebase
     let user = await this.repository.findByFirebaseUid(firebaseUid);
-    
-    // RÈGLE MÉTIER 1 : Correction automatique du compte admin
-    // Si c'est le UID Firebase connu de l'admin, on s'assure que le profil est correct
-    if (firebaseUid === ADMIN_FIREBASE_UID && user) {
-      user = await this.promoteToAdmin(user);
+
+    // Tentative 2 : si UID non trouvé mais email connu, recherche par email
+    // Cela gère le cas d'un compte Firebase recréé (nouvel UID, même email)
+    if (!user && email) {
+      const userByEmail = await this.repository.findByEmail(email);
+      if (userByEmail) {
+        // Re-liaison : on met à jour l'UID Firebase avec le nouveau
+        user = await this.repository.update(userByEmail.id, { firebaseUid }) ?? userByEmail;
+      }
     }
-    
-    // RÈGLE MÉTIER 2 : Attribution du rôle admin par email
-    // Si l'utilisateur a l'email admin mais pas le rôle, on le corrige
+
+    // RÈGLE MÉTIER SPÉCIALE : Auto-création du compte administrateur
+    // Si l'email admin est fourni mais qu'il n'y a toujours pas de profil en base,
+    // on crée automatiquement le compte admin (première connexion ou BDD réinitialisée)
+    if (!user && email === ADMIN_EMAIL) {
+      user = await this.repository.create({
+        firebaseUid,
+        email: ADMIN_EMAIL,
+        firstName: "Admin",
+        lastName: "EcoRide",
+        phone: "",
+        role: "admin",
+      });
+    }
+
+    // RÈGLE MÉTIER : Garantie du rôle admin pour l'email admin
     if (user && user.email === ADMIN_EMAIL && user.role !== "admin") {
       user = await this.repository.update(user.id, { role: "admin" });
     }
-    
+
     return user;
   }
 
