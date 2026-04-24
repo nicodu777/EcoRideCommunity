@@ -13,7 +13,6 @@ import { authService, AuthUser } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Plus, MessageSquare, Leaf, Shield, Euro, Car, Search as SearchIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { FloatingMessagesButton } from "@/components/ui/floating-messages-button";
 
 export default function Home() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -297,22 +296,6 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Quick Action Buttons */}
-      {user && (
-        <div className="hidden lg:block fixed right-6 bottom-6 space-y-4">
-          <Button
-            size="lg"
-            className="w-14 h-14 bg-eco-green hover:bg-green-600 rounded-full shadow-lg"
-            onClick={() => setShowPublishModal(true)}
-            title="Publier un trajet"
-          >
-            <Plus size={20} />
-          </Button>
-        </div>
-      )}
-
-      {/* Floating Messages Button */}
-      {user?.profile && <FloatingMessagesButton userId={user.profile.id} />}
 
       {/* Modals */}
       <BookingModal

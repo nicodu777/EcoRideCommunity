@@ -10,7 +10,7 @@ import { MessageCircle, Search, ArrowLeft, Send } from "lucide-react";
 import { ChatWindow } from "@/components/chat/chat-window";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 interface Conversation {
   tripId: number;
@@ -29,13 +29,16 @@ interface Conversation {
 }
 
 export function MessagesPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(authService.getCurrentUser());
+  const [authResolved, setAuthResolved] = useState(!!authService.getCurrentUser());
   const [selectedTripId, setSelectedTripId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((authUser) => {
       setUser(authUser);
+      setAuthResolved(true);
     });
     return unsubscribe;
   }, []);
@@ -46,12 +49,19 @@ export function MessagesPage() {
     enabled: !!user?.profile?.id,
   });
 
-  if (!user?.profile) {
+  // Spinner pendant résolution de l'auth
+  if (!authResolved) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-eco-green border-t-transparent rounded-full" />
       </div>
     );
+  }
+
+  // Redirige vers la connexion si non authentifié
+  if (authResolved && !user?.profile) {
+    navigate("/login");
+    return null;
   }
 
   // Filtrer les conversations selon la recherche
