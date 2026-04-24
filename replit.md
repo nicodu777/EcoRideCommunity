@@ -8,23 +8,48 @@ EcoRide is a modern eco-responsible carpooling web application built with a full
 
 Preferred communication style: Simple, everyday language.
 
-## System Architecture
+## Project Structure (Architecture POO — ECF Studi)
+
+Le projet est divisé en deux dossiers indépendants partageant les `node_modules` racine :
+
+```
+/
+├── frontend/          Interface React (Vite, port 5000)
+│   ├── src/           Composants, pages, hooks, lib
+│   ├── vite.config.ts Proxy /api → localhost:5001
+│   └── index.html
+├── backend/           API Express (port 5001)
+│   ├── server/        Routes, Services, Repositories
+│   │   ├── routes/    userRoutes.ts (POO)
+│   │   ├── services/  UserService.ts (logique métier)
+│   │   └── repositories/ UserRepository.ts (accès DB)
+│   └── shared/        schema.ts (types partagés)
+├── node_modules/      Partagés entre frontend et backend
+└── package.json       Scripts racine (npm run dev)
+```
+
+### Workflows Replit
+- **Start application** : `cd frontend && vite --port 5000` (webview)
+- **Start backend** : `cd backend && tsx server/index.ts` (console, port 5001)
 
 ### Frontend Architecture
-- **Framework**: React with TypeScript
-- **Build Tool**: Vite for fast development and optimized builds
-- **UI Library**: Shadcn/UI components with Radix UI primitives
-- **Styling**: Tailwind CSS with custom ecological theme (green color palette)
-- **State Management**: TanStack Query for server state management
-- **Authentication**: Firebase Authentication for user management
-- **Routing**: Wouter for lightweight client-side routing
+- **Framework**: React avec TypeScript
+- **Build Tool**: Vite (port 5000, proxy /api → backend:5001)
+- **UI Library**: Shadcn/UI + Radix UI
+- **Styling**: Tailwind CSS (thème écologique vert)
+- **State Management**: TanStack Query v5
+- **Authentication**: Firebase Authentication
+- **Routing**: Wouter
 
-### Backend Architecture
-- **Runtime**: Node.js with Express.js server
-- **Language**: TypeScript for type safety
-- **Database ORM**: Drizzle ORM for type-safe database operations
-- **WebSocket**: Built-in WebSocket support for real-time chat functionality
-- **Authentication**: Dual authentication system (Firebase Auth + custom employee auth)
+### Backend Architecture (POO — 3 couches)
+- **Runtime**: Node.js + Express.js (port 5001)
+- **Language**: TypeScript
+- **Database ORM**: Drizzle ORM + PostgreSQL
+- **Couche Routes**: `backend/server/routes/` — reçoit et valide les requêtes
+- **Couche Services**: `backend/server/services/` — logique métier
+- **Couche Repository**: `backend/server/repositories/` — accès base de données
+- **WebSocket**: Chat en temps réel (`backend/server/websocket.ts`)
+- **Authentication**: Firebase (utilisateurs) + bcrypt (employés)
 
 ### Database Design
 - **Primary Database**: PostgreSQL with Neon serverless hosting

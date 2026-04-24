@@ -1,0 +1,43 @@
+{
+  "name": "ecoride-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "API REST EcoRide — serveur Express avec PostgreSQL pour le covoiturage écoresponsable",
+  "scripts": {
+    "dev": "NODE_ENV=development tsx server/index.ts",
+    "build": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=../dist",
+    "start": "NODE_ENV=production node ../dist/index.js",
+    "db:push": "drizzle-kit push --config=drizzle.config.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "*",
+    "@sendgrid/mail": "*",
+    "bcryptjs": "*",
+    "connect-pg-simple": "*",
+    "drizzle-orm": "*",
+    "drizzle-zod": "*",
+    "express": "*",
+    "express-session": "*",
+    "memorystore": "*",
+    "openai": "*",
+    "passport": "*",
+    "passport-local": "*",
+    "ws": "*",
+    "zod": "*",
+    "zod-validation-error": "*"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "*",
+    "@types/connect-pg-simple": "*",
+    "@types/express": "*",
+    "@types/express-session": "*",
+    "@types/node": "*",
+    "@types/passport": "*",
+    "@types/passport-local": "*",
+    "@types/ws": "*",
+    "drizzle-kit": "*",
+    "esbuild": "*",
+    "tsx": "*",
+    "typescript": "*"
+  }
+}
