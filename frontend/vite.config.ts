@@ -54,6 +54,7 @@ export default defineConfig(async ({ mode }) => ({
         changeOrigin: true,
       },
     },
+    allowedHosts: "all",
     fs: {
       strict: false,
     },
