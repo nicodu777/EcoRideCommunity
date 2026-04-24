@@ -1,4 +1,4 @@
-import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMessages, userReports, adminActions, employees, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type Employee, type InsertEmployee, type TripWithDriver, type BookingWithTrip, type TripWithDetails } from "../shared/schema";
+import { users, trips, bookings, ratings, tripIssues, platformEarnings, chatMessages, userReports, adminActions, employees, notifications, type User, type InsertUser, type Trip, type InsertTrip, type Booking, type InsertBooking, type Rating, type InsertRating, type TripIssue, type InsertTripIssue, type PlatformEarnings, type InsertPlatformEarnings, type Employee, type InsertEmployee, type TripWithDriver, type BookingWithTrip, type TripWithDetails, type Notification } from "../shared/schema";
 import { db } from "./db";
 import { eq, and, like, sql, desc, count, gte, asc } from "drizzle-orm";
 import { pool } from "./db";
@@ -76,6 +76,11 @@ export interface IStorage {
   updateEmployee(id: number, updates: Partial<Employee>): Promise<Employee | undefined>;
   deactivateEmployee(id: number): Promise<boolean>;
   updateEmployeeLastLogin(id: number): Promise<void>;
+
+  // Notification operations
+  getNotificationsByUser(userId: number): Promise<Notification[]>;
+  createNotification(data: { userId: number; title: string; message: string; type: string; actionUrl?: string }): Promise<Notification>;
+  markNotificationRead(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -768,6 +773,29 @@ export class MemStorage implements IStorage {
 
   async logAdminAction(action: any): Promise<any> {
     return {}; // Stub for demo
+  }
+
+  // Notification operations (MemStorage stubs)
+  async getNotificationsByUser(userId: number): Promise<Notification[]> {
+    return [];
+  }
+
+  async createNotification(data: { userId: number; title: string; message: string; type: string; actionUrl?: string }): Promise<Notification> {
+    const n: Notification = {
+      id: Date.now(),
+      userId: data.userId,
+      title: data.title,
+      message: data.message,
+      type: data.type,
+      isRead: false,
+      actionUrl: data.actionUrl ?? null,
+      createdAt: new Date(),
+    };
+    return n;
+  }
+
+  async markNotificationRead(id: number): Promise<void> {
+    // no-op in memory
   }
 }
 
@@ -1524,8 +1552,32 @@ export class DatabaseStorage implements IStorage {
       console.error("Error updating employee last login:", error);
     }
   }
+
+  // Notification operations (DatabaseStorage — vraie base de données)
+  async getNotificationsByUser(userId: number): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(desc(notifications.createdAt));
+  }
+
+  async createNotification(data: { userId: number; title: string; message: string; type: string; actionUrl?: string }): Promise<Notification> {
+    const [n] = await db.insert(notifications).values({
+      userId: data.userId,
+      title: data.title,
+      message: data.message,
+      type: data.type,
+      actionUrl: data.actionUrl,
+    }).returning();
+    return n;
+  }
+
+  async markNotificationRead(id: number): Promise<void> {
+    await db.update(notifications).set({ isRead: true }).where(eq(notifications.id, id));
+  }
 }
 
-// Utilisation temporaire du stockage en mémoire car l'endpoint Neon est inactif
+// MemStorage utilisé car la connexion Neon nécessite une reconfiguration des identifiants
+// Identique au comportement de l'ancien server/storage.ts
 export const storage = new MemStorage();
-// export const storage = new DatabaseStorage();

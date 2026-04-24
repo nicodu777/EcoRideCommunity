@@ -11,31 +11,20 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-export default defineConfig(async ({ mode }) => ({
+export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
-    ...(mode === "development"
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer()
-          ),
-        ]
-      : []),
   ],
 
   resolve: {
     alias: {
-      // Composants et hooks React
       "@": path.resolve(import.meta.dirname, "src"),
-      // Types partagés avec le backend (lecture seule, aucun code serveur inclus)
       "@shared": path.resolve(import.meta.dirname, "../backend/shared"),
-      // Assets statiques (images, logos, etc.)
       "@assets": path.resolve(import.meta.dirname, "../attached_assets"),
     },
   },
 
-  // La racine du projet frontend est ce dossier
   root: import.meta.dirname,
 
   build: {
@@ -44,19 +33,25 @@ export default defineConfig(async ({ mode }) => ({
   },
 
   server: {
-    // Port 5000 — seul port exposé dans l'environnement Replit
     port: 5000,
     host: "0.0.0.0",
+    allowedHosts: "all",
     proxy: {
-      // Toutes les requêtes /api sont redirigées vers le backend Express
       "/api": {
         target: "http://localhost:5001",
         changeOrigin: true,
       },
+      "/ws": {
+        target: "http://localhost:5001",
+        ws: true,
+        changeOrigin: true,
+      },
     },
-    allowedHosts: "all",
     fs: {
       strict: false,
+      allow: [
+        path.resolve(import.meta.dirname, ".."),
+      ],
     },
   },
-}));
+});
