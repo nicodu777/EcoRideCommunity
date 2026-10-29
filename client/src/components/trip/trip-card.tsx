@@ -1,9 +1,11 @@
 import { TripWithDriver } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, Users, Leaf, MapPin } from "lucide-react";
+import { Link } from "wouter";
+import { Star, Users, Leaf } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { ENERGY_LABELS, formatCredits } from "@/lib/labels";
 
 interface TripCardProps {
   trip: TripWithDriver;
@@ -34,14 +36,12 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
     );
   };
 
-  const co2Saved = Math.round(parseFloat(trip.pricePerSeat) * 0.5); // Rough calculation
-
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-eco-green to-eco-blue rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-green-700 to-cyan-700 rounded-full flex items-center justify-center">
               <span className="text-white font-medium">{getDriverInitials()}</span>
             </div>
             <div>
@@ -63,9 +63,9 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
           </div>
           <div className="text-right">
             <div className="text-lg font-bold text-slate-900">
-              {parseFloat(trip.pricePerSeat).toFixed(0)}€
+              {formatCredits(trip.pricePerSeat)}
             </div>
-            <div className="text-sm text-slate-600">par personne</div>
+            <div className="text-sm text-slate-600">par place</div>
           </div>
         </div>
 
@@ -97,20 +97,30 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
               <span>{trip.availableSeats} place{trip.availableSeats > 1 ? 's' : ''}</span>
             </span>
           </div>
-          <div className="flex items-center space-x-1 text-sm text-eco-green">
-            <Leaf size={14} />
-            <span>-{co2Saved}kg CO₂</span>
-          </div>
+          {/* US3 : un trajet est écologique si le véhicule est électrique */}
+          {trip.isEcological ? (
+            <span className="flex items-center space-x-1 text-sm text-green-700 font-medium">
+              <Leaf size={14} aria-hidden="true" />
+              <span>Trajet écologique</span>
+            </span>
+          ) : (
+            <span className="text-sm text-slate-600">
+              {trip.vehicle.brand} {trip.vehicle.model} · {ENERGY_LABELS[trip.vehicle.energy]}
+            </span>
+          )}
         </div>
 
-        {showBookButton && (
-          <Button 
-            className="w-full bg-eco-green hover:bg-green-600" 
-            onClick={() => onBook?.(trip)}
-          >
-            Réserver ce trajet
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {/* US5 : page de détail (véhicule, préférences et avis du chauffeur) */}
+          <Link href={`/trips/${trip.id}`} className="flex-1">
+            <Button variant="outline" className="w-full">Détails</Button>
+          </Link>
+          {showBookButton && (
+            <Button className="flex-1 bg-eco-green hover:bg-green-600" onClick={() => onBook?.(trip)}>
+              Participer
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

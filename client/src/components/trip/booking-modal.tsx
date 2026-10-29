@@ -16,12 +16,14 @@ import { Star, X, Leaf } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { BookingConfirmationModal } from "./booking-confirmation-modal";
+import { formatCredits } from "@/lib/labels";
 
 interface BookingModalProps {
   trip: TripWithDriver | null;
   open: boolean;
   onClose: () => void;
-  onConfirm: (tripId: number, seatsBooked: number, message: string, totalPrice: number) => void;
+  /** Le prix n'est pas transmis : le serveur le recalcule lui-même. */
+  onConfirm: (tripId: number, seatsBooked: number, message: string) => void;
   loading?: boolean;
   userCredits?: number;
 }
@@ -51,7 +53,7 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false, 
   };
 
   const handleFinalConfirm = () => {
-    onConfirm(trip.id, seatsBooked, message, totalPrice);
+    onConfirm(trip.id, seatsBooked, message);
     setShowConfirmation(false);
   };
 
@@ -154,7 +156,7 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false, 
           <div className="flex items-center justify-between p-4 bg-eco-green bg-opacity-10 rounded-lg">
             <span className="font-medium text-slate-900">Total à payer</span>
             <span className="text-xl font-bold text-eco-green">
-              {totalPrice.toFixed(0)}€
+              {formatCredits(totalPrice)}
             </span>
           </div>
 

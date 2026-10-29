@@ -1,22 +1,34 @@
+/**
+ * Service d'authentification côté client (pattern Singleton).
+ *
+ * 1. Firebase Authentication gère l'email et le mot de passe (hachage,
+ *    réinitialisation, protection contre la force brute) ;
+ * 2. notre API stocke le profil EcoRide (rôle, crédits...) dans PostgreSQL.
+ * Le lien entre les deux est l'ID token Firebase envoyé à chaque requête.
+ */
 import { auth } from "./firebase";
-import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged,
-  User as FirebaseUser
+  User as FirebaseUser,
 } from "firebase/auth";
-import { apiRequest } from "./queryClient";
-import { User } from "@shared/schema";
+import { apiJson, ApiError } from "./queryClient";
+import type { User } from "@shared/schema";
+
+/** Profil renvoyé par l'API (sans l'UID Firebase). */
+export type Profile = Omit<User, "firebaseUid">;
 
 export interface AuthUser extends FirebaseUser {
-  profile?: User;
+  profile?: Profile;
 }
 
 export class AuthService {
   private static instance: AuthService;
   private currentUser: AuthUser | null = null;
   private listeners: ((user: AuthUser | null) => void)[] = [];
+  private registering = false;
 
   static getInstance() {
     if (!AuthService.instance) {
@@ -27,99 +39,66 @@ export class AuthService {
 
   constructor() {
     onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        console.log("Firebase user authenticated:", firebaseUser.uid);
-        try {
-          // Get user profile from our backend
-          const response = await fetch(`/api/users/firebase/${firebaseUser.uid}`);
-          if (response.ok) {
-            const profile = await response.json();
-            this.currentUser = {
-              ...firebaseUser,
-              profile,
-            };
-            console.log("User profile loaded:", profile);
-          } else if (response.status === 404) {
-            // Utilisateur pas encore créé dans notre BDD (en cours d'inscription)
-            // On garde juste l'utilisateur Firebase, le profil sera créé par register()
-            console.log("User not yet in database, waiting for registration to complete");
-            this.currentUser = firebaseUser as AuthUser;
-          } else {
-            console.warn("Backend error, using Firebase user only");
-            this.currentUser = firebaseUser as AuthUser;
-          }
-        } catch (error) {
-          console.error("Error fetching user profile:", error);
-          this.currentUser = firebaseUser as AuthUser;
-        }
-      } else {
-        console.log("User logged out");
-        this.currentUser = null;
-      }
-      
+      // Pendant l'inscription, c'est register() qui crée puis charge le profil
+      if (this.registering) return;
+      this.currentUser = firebaseUser ? await this.loadProfile(firebaseUser) : null;
       this.notifyListeners();
     });
   }
 
-  async register(email: string, password: string, firstName: string, lastName: string, role: string) {
+  /** Charge le profil EcoRide de l'utilisateur Firebase connecté. */
+  private async loadProfile(firebaseUser: FirebaseUser): Promise<AuthUser> {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+      const profile = await apiJson<Profile>("GET", "/api/users/me");
+      return Object.assign(firebaseUser, { profile });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 403) {
+        // Compte suspendu par l'administrateur : on déconnecte
+        await signOut(auth);
+      }
+      return firebaseUser as AuthUser;
+    }
+  }
 
-      // Create user profile in our backend
-      const profileData = {
-        email: firebaseUser.email!,
-        firebaseUid: firebaseUser.uid,
-        firstName,
-        lastName,
-        role,
-      };
+  /** À appeler après une action qui modifie le profil (crédits, rôle...). */
+  async refreshProfile() {
+    if (auth.currentUser) {
+      this.currentUser = await this.loadProfile(auth.currentUser);
+      this.notifyListeners();
+    }
+  }
 
-      const response = await apiRequest("POST", "/api/users", profileData);
-      const profile = await response.json();
-
-      this.currentUser = {
-        ...firebaseUser,
-        profile,
-      };
-
+  async register(email: string, password: string, firstName: string, lastName: string, role: string) {
+    this.registering = true;
+    try {
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
+      // L'email et l'UID ne sont PAS envoyés : le serveur les lit dans le token vérifié
+      const profile = await apiJson<Profile>("POST", "/api/users", { firstName, lastName, role });
+      this.currentUser = Object.assign(firebaseUser, { profile });
       this.notifyListeners();
       return this.currentUser;
     } catch (error: any) {
-      console.error("Registration error:", error);
-      
-      // Provide user-friendly error messages
-      if (error.code === "auth/configuration-not-found") {
-        throw new Error("Le service d'authentification n'est pas correctement configuré. Veuillez contacter l'administrateur.");
-      } else if (error.code === "auth/email-already-in-use") {
+      console.error("Erreur d'inscription :", error);
+      if (error.code === "auth/email-already-in-use") {
         throw new Error("Cette adresse email est déjà utilisée.");
       } else if (error.code === "auth/weak-password") {
-        throw new Error("Le mot de passe doit contenir au moins 6 caractères.");
+        throw new Error("Le mot de passe est trop faible.");
       } else if (error.code === "auth/invalid-email") {
         throw new Error("Adresse email invalide.");
-      } else {
-        throw new Error(`Erreur d'inscription: ${error.message || "Une erreur inattendue s'est produite"}`);
       }
+      throw new Error(error.message || "Une erreur inattendue s'est produite");
+    } finally {
+      this.registering = false;
     }
   }
 
   async login(email: string, password: string) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      return userCredential.user;
-    } catch (error) {
-      console.error("Login error:", error);
-      throw error;
-    }
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
   }
 
   async logout() {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout error:", error);
-      throw error;
-    }
+    await signOut(auth);
   }
 
   getCurrentUser(): AuthUser | null {
@@ -128,15 +107,13 @@ export class AuthService {
 
   onAuthStateChanged(callback: (user: AuthUser | null) => void) {
     this.listeners.push(callback);
-    
-    // Return unsubscribe function
     return () => {
-      this.listeners = this.listeners.filter(listener => listener !== callback);
+      this.listeners = this.listeners.filter((listener) => listener !== callback);
     };
   }
 
   private notifyListeners() {
-    this.listeners.forEach(listener => listener(this.currentUser));
+    this.listeners.forEach((listener) => listener(this.currentUser));
   }
 }
 

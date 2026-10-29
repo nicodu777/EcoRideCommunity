@@ -1,531 +1,242 @@
+/**
+ * Espace administrateur (US13).
+ *
+ * - Statistiques : covoiturages par jour, crédits gagnés par jour et au total ;
+ * - Utilisateurs : suspension / réactivation de comptes ;
+ * - Employés : création et désactivation de comptes employés ;
+ * - Journal : historique des actions de l'administrateur (stocké dans MongoDB).
+ *
+ * L'affichage de cette page n'est qu'un confort : la vraie protection est
+ * côté serveur, où chaque route /api/admin exige le rôle « admin ».
+ */
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import type { User, PublicEmployee, InsertEmployee } from "@shared/schema";
 import { authService, AuthUser } from "@/lib/auth";
-import { User } from "@shared/schema";
-import { Button } from "@/components/ui/button";
+import { apiJson, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
-import { Users, TrendingUp, Euro, Ban, Plus, AlertTriangle, Activity } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { Label } from "@/components/ui/label";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
+import { Users, TrendingUp, Coins, Ban } from "lucide-react";
+import { ROLE_LABELS, formatCredits } from "@/lib/labels";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-// import { ReportsManagement } from "@/components/admin/reports-management";
 
-interface AnalyticsData {
-  date: string;
-  count?: number;
-  amount?: string;
-  trips?: number;
-}
+type AdminUser = Omit<User, "firebaseUid">;
+type AdminAction = { action: string; adminId: number; targetId: number; details?: { email?: string }; createdAt: string };
+
+const ACTION_LABELS: Record<string, string> = {
+  suspend_user: "Compte suspendu",
+  reactivate_user: "Compte réactivé",
+  create_employee: "Employé créé",
+  deactivate_employee: "Employé désactivé",
+};
+
+const EMPTY_EMPLOYEE = { email: "", password: "", firstName: "", lastName: "", phone: "", position: "Support Client" };
+
+/** Affiche les dates du graphique au format jj/mm. */
+const shortDate = (iso: string) => format(new Date(iso), "dd/MM", { locale: fr });
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [newEmployee, setNewEmployee] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    phone: "",
-    password: ""
-  });
+  const [user, setUser] = useState<AuthUser | null>(authService.getCurrentUser());
+  const [newEmployee, setNewEmployee] = useState(EMPTY_EMPLOYEE);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChanged((user) => {
-      setUser(user);
-    });
-    return unsubscribe;
-  }, []);
+  useEffect(() => authService.onAuthStateChanged(setUser), []);
+  const isAdmin = user?.profile?.role === "admin";
 
-  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
-    queryKey: ['/api/admin/users'],
-    enabled: !!user?.profile?.id && user?.profile?.role === 'admin',
+  const { data: users = [], isLoading: usersLoading } = useQuery<AdminUser[]>({ queryKey: ["/api/admin/users"], enabled: isAdmin });
+  const { data: dailyTrips = [] } = useQuery<{ date: string; count: number }[]>({ queryKey: ["/api/admin/analytics/daily-trips"], enabled: isAdmin });
+  const { data: dailyEarnings = [] } = useQuery<{ date: string; amount: number }[]>({ queryKey: ["/api/admin/analytics/daily-earnings"], enabled: isAdmin });
+  const { data: total } = useQuery<{ total: number }>({ queryKey: ["/api/admin/analytics/total-earnings"], enabled: isAdmin });
+  const { data: employees = [] } = useQuery<PublicEmployee[]>({ queryKey: ["/api/admin/employees"], enabled: isAdmin });
+  const { data: actions = [] } = useQuery<AdminAction[]>({ queryKey: ["/api/admin/actions"], enabled: isAdmin });
+
+  const onError = (error: Error) => toast({ title: "Action impossible", description: error.message, variant: "destructive" });
+  const invalidateAdmin = () => queryClient.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/admin") });
+
+  const setSuspended = useMutation({
+    mutationFn: ({ id, suspend }: { id: number; suspend: boolean }) =>
+      apiJson("PUT", `/api/admin/users/${id}/${suspend ? "suspend" : "reactivate"}`),
+    onSuccess: (_data, { suspend }) => { invalidateAdmin(); toast({ title: suspend ? "Compte suspendu" : "Compte réactivé" }); },
+    onError,
   });
 
-  const { data: dailyTrips = [], isLoading: tripsLoading } = useQuery<AnalyticsData[]>({
-    queryKey: ['/api/admin/analytics/daily-trips'],
-    enabled: !!user?.profile?.id && user?.profile?.role === 'admin',
+  const createEmployee = useMutation({
+    mutationFn: (employee: Partial<InsertEmployee>) => apiJson<PublicEmployee>("POST", "/api/admin/employees", employee),
+    onSuccess: () => { invalidateAdmin(); setNewEmployee(EMPTY_EMPLOYEE); toast({ title: "Compte employé créé" }); },
+    onError,
   });
 
-  const { data: dailyEarnings = [], isLoading: earningsLoading } = useQuery<AnalyticsData[]>({
-    queryKey: ['/api/admin/analytics/daily-earnings'],
-    enabled: !!user?.profile?.id && user?.profile?.role === 'admin',
+  const deactivateEmployee = useMutation({
+    mutationFn: (id: number) => apiJson("PATCH", `/api/admin/employees/${id}/deactivate`),
+    onSuccess: () => { invalidateAdmin(); toast({ title: "Employé désactivé" }); },
+    onError,
   });
 
-  const { data: totalEarnings = { total: "0.00" }, isLoading: totalLoading } = useQuery<{ total: string }>({
-    queryKey: ['/api/admin/analytics/total-earnings'],
-    enabled: !!user?.profile?.id && user?.profile?.role === 'admin',
-  });
-
-  const handleSuspendUser = async (userId: number) => {
-    try {
-      await apiRequest("PUT", `/api/admin/users/${userId}/suspend`, {});
-
-      toast({
-        title: "Utilisateur suspendu",
-        description: "L'utilisateur a été suspendu avec succès.",
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de suspendre l'utilisateur.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateEmployee = async () => {
-    if (!newEmployee.email || !newEmployee.firstName || !newEmployee.lastName || !newEmployee.password) {
-      toast({
-        title: "Erreur",
-        description: "Tous les champs sont obligatoires.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      await apiRequest("/api/admin/employees", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-user-id": user.id.toString(),
-        },
-        body: JSON.stringify({
-          ...newEmployee,
-          permissions: newEmployee.permissions || ["support"]
-        })
-      });
-
-      toast({
-        title: "Employé créé",
-        description: "Le compte employé a été créé avec succès.",
-      });
-
-      setNewEmployee({
-        email: "",
-        firstName: "",
-        lastName: "",
-        phone: "",
-        password: ""
-      });
-
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de créer le compte employé.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatChartData = (data: AnalyticsData[]) => {
-    return data.map(item => ({
-      ...item,
-      date: format(new Date(item.date), 'dd/MM', { locale: fr }),
-      amount: item.amount ? parseFloat(item.amount) : undefined
-    }));
-  };
-
-  if (!user || user.profile?.role !== 'admin') {
+  if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold text-slate-900 mb-2">Accès refusé</h2>
-            <p className="text-slate-600">Vous n'avez pas les permissions administrateur pour accéder à cette page.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <Card className="max-w-md w-full"><CardContent className="p-6 text-center">
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Accès refusé</h1>
+          <p className="text-slate-600">Cette page est réservée à l'administrateur.</p>
+        </CardContent></Card>
       </div>
     );
   }
 
+  const field = (key: keyof typeof EMPTY_EMPLOYEE) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setNewEmployee({ ...newEmployee, [key]: e.target.value });
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">
-            Espace Administrateur
-          </h1>
-          <p className="text-slate-600 mt-2">
-            Gérez les employés, surveillez les performances et administrez la plateforme.
-          </p>
+        <h1 className="text-3xl font-bold text-slate-900">Espace administrateur</h1>
+        <p className="text-slate-600 mt-2 mb-8">Suivi de l'activité, gestion des comptes et des employés.</p>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: Users, label: "Utilisateurs", value: users.length },
+            { icon: TrendingUp, label: "Covoiturages", value: dailyTrips.reduce((s, d) => s + d.count, 0) },
+            { icon: Coins, label: "Crédits gagnés (total)", value: formatCredits(total?.total ?? 0) },
+            { icon: Ban, label: "Comptes suspendus", value: users.filter((u) => u.isSuspended).length },
+          ].map(({ icon: Icon, label, value }) => (
+            <Card key={label}><CardContent className="p-5 text-center">
+              <Icon className="w-7 h-7 text-eco-green mx-auto mb-2" aria-hidden="true" />
+              <div className="text-xl font-bold text-slate-900">{value}</div>
+              <div className="text-sm text-slate-600">{label}</div>
+            </CardContent></Card>
+          ))}
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Users className="w-8 h-8 text-eco-green mx-auto mb-2" />
-              <div className="text-2xl font-bold text-slate-900">{users.length}</div>
-              <div className="text-sm text-slate-600">Utilisateurs totaux</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="w-8 h-8 text-eco-blue mx-auto mb-2" />
-              <div className="text-2xl font-bold text-slate-900">
-                {dailyTrips.reduce((sum, day) => sum + (day.count || 0), 0)}
-              </div>
-              <div className="text-sm text-slate-600">Trajets ce mois</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Euro className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-slate-900">
-                {parseFloat(totalEarnings.total).toFixed(0)}€
-              </div>
-              <div className="text-sm text-slate-600">Revenus totaux</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-6 text-center">
-              <Ban className="w-8 h-8 text-red-500 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-slate-900">
-                {users.filter(u => u.isSuspended).length}
-              </div>
-              <div className="text-sm text-slate-600">Comptes suspendus</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue="stats" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+            <TabsTrigger value="stats">Statistiques</TabsTrigger>
             <TabsTrigger value="users">Utilisateurs</TabsTrigger>
             <TabsTrigger value="employees">Employés</TabsTrigger>
-            <TabsTrigger value="reports">Signalements</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="employees">Employés</TabsTrigger>
+            <TabsTrigger value="log">Journal</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Daily Trips Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nombre de covoiturages par jour</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {tripsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <LoadingSpinner />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={formatChartData(dailyTrips)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#10b981" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Daily Earnings Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Revenus de la plateforme par jour</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {earningsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <LoadingSpinner />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={formatChartData(dailyEarnings)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => [`${value}€`, 'Revenus']} />
-                        <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="stats" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader><CardTitle>Covoiturages par jour</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={dailyTrips.map((d) => ({ ...d, date: shortDate(d.date) }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip formatter={(v) => [v, "Covoiturages"]} />
+                    <Bar dataKey="count" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>Crédits gagnés par la plateforme par jour</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={dailyEarnings.map((d) => ({ ...d, date: shortDate(d.date) }))}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis allowDecimals={false} />
+                    <Tooltip formatter={(v) => [formatCredits(Number(v)), "Gains"]} />
+                    <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          <TabsContent value="reports" className="space-y-6">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-slate-900">Gestion des signalements</h2>
-                <div className="flex items-center space-x-2 text-sm text-slate-600">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Aucun signalement en attente</span>
-                </div>
-              </div>
-              
-              <Card>
-                <CardContent className="p-6 text-center">
-                  <AlertTriangle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-600">Aucun signalement pour le moment</p>
-                  <p className="text-sm text-slate-500 mt-2">
-                    Les signalements d'utilisateurs apparaîtront ici pour modération
-                  </p>
+          <TabsContent value="users" className="space-y-4">
+            {usersLoading ? <LoadingSpinner size="lg" /> : users.filter((u) => u.role !== "admin").map((u) => (
+              <Card key={u.id}>
+                <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-slate-900 flex items-center gap-2">
+                      {u.firstName} {u.lastName}
+                      <Badge variant="outline">{ROLE_LABELS[u.role]}</Badge>
+                      {u.isSuspended && <Badge className="bg-red-100 text-red-800">Suspendu</Badge>}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {u.email} · {formatCredits(u.credits)} · inscrit le {format(new Date(u.createdAt), "dd MMM yyyy", { locale: fr })}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" disabled={setSuspended.isPending}
+                    className={u.isSuspended ? "" : "border-red-300 text-red-700"}
+                    onClick={() => setSuspended.mutate({ id: u.id, suspend: !u.isSuspended })}>
+                    {u.isSuspended ? "Réactiver" : "Suspendre"}
+                  </Button>
                 </CardContent>
               </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Daily Trips Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Nombre de covoiturages par jour</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {tripsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <LoadingSpinner />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={formatChartData(dailyTrips)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip />
-                        <Bar dataKey="count" fill="#10b981" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Daily Earnings Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Revenus de la plateforme par jour</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {earningsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <LoadingSpinner />
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <LineChart data={formatChartData(dailyEarnings)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => [`${value}€`, 'Revenus']} />
-                        <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="users" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Gestion des utilisateurs</h2>
-            </div>
-
-            {usersLoading ? (
-              <div className="flex justify-center py-12">
-                <LoadingSpinner size="lg" />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {users.filter(u => u.role !== 'admin').map((user) => (
-                  <Card key={user.id}>
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-medium text-slate-900">
-                              {user.firstName} {user.lastName}
-                            </h3>
-                            <Badge className={
-                              user.role === 'employee' 
-                                ? "bg-blue-100 text-blue-800"
-                                : user.role === 'driver'
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-800"
-                            }>
-                              {user.role === 'employee' ? 'Employé' : 
-                               user.role === 'driver' ? 'Conducteur' : 'Passager'}
-                            </Badge>
-                            {user.isSuspended && (
-                              <Badge className="bg-red-100 text-red-800">
-                                Suspendu
-                              </Badge>
-                            )}
-                          </div>
-                          
-                          <div className="text-sm text-slate-600 space-y-1">
-                            <div>Email: {user.email}</div>
-                            {user.phone && <div>Téléphone: {user.phone}</div>}
-                            <div>Crédits: {parseFloat(user.credits || '0').toFixed(2)}€</div>
-                            <div>
-                              Note: {user.averageRating ? parseFloat(user.averageRating).toFixed(1) : '0.0'}/5 
-                              ({user.totalRatings} évaluations)
-                            </div>
-                            <div>Inscrit le {format(new Date(user.createdAt), 'dd MMM yyyy', { locale: fr })}</div>
-                          </div>
-                        </div>
-
-                        {!user.isSuspended && user.role !== 'employee' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSuspendUser(user.id)}
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                          >
-                            <Ban className="w-4 h-4 mr-1" />
-                            Suspendre
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+            ))}
           </TabsContent>
 
           <TabsContent value="employees" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900">Gestion des employés</h2>
-            </div>
-
-            {/* Create Employee Form */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Créer un compte employé
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Prénom
-                    </label>
-                    <Input
-                      value={newEmployee.firstName}
-                      onChange={(e) => setNewEmployee(prev => ({ ...prev, firstName: e.target.value }))}
-                      placeholder="Prénom"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Nom
-                    </label>
-                    <Input
-                      value={newEmployee.lastName}
-                      onChange={(e) => setNewEmployee(prev => ({ ...prev, lastName: e.target.value }))}
-                      placeholder="Nom"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Email
-                    </label>
-                    <Input
-                      type="email"
-                      value={newEmployee.email}
-                      onChange={(e) => setNewEmployee(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Téléphone
-                    </label>
-                    <Input
-                      value={newEmployee.phone}
-                      onChange={(e) => setNewEmployee(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="06 12 34 56 78"
-                    />
-                  </div>
+              <CardHeader><CardTitle>Créer un compte employé</CardTitle></CardHeader>
+              <CardContent>
+                <form className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  onSubmit={(e) => { e.preventDefault(); createEmployee.mutate({ ...newEmployee, phone: newEmployee.phone || undefined }); }}>
+                  <div><Label htmlFor="e-first">Prénom</Label><Input id="e-first" value={newEmployee.firstName} onChange={field("firstName")} required /></div>
+                  <div><Label htmlFor="e-last">Nom</Label><Input id="e-last" value={newEmployee.lastName} onChange={field("lastName")} required /></div>
+                  <div><Label htmlFor="e-email">Email</Label><Input id="e-email" type="email" value={newEmployee.email} onChange={field("email")} required /></div>
+                  <div><Label htmlFor="e-phone">Téléphone</Label><Input id="e-phone" value={newEmployee.phone} onChange={field("phone")} /></div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Mot de passe temporaire
-                    </label>
-                    <Input
-                      type="password"
-                      value={newEmployee.password}
-                      onChange={(e) => setNewEmployee(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Mot de passe"
-                    />
+                    <Label htmlFor="e-password">Mot de passe provisoire</Label>
+                    <Input id="e-password" type="password" autoComplete="new-password" value={newEmployee.password} onChange={field("password")} required />
+                    <p className="text-xs text-slate-500 mt-1">8 caractères minimum, dont une majuscule et un chiffre.</p>
                   </div>
-                </div>
-                <Button onClick={handleCreateEmployee} className="bg-eco-green hover:bg-green-600">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Créer le compte employé
-                </Button>
+                  <Button type="submit" className="bg-eco-green hover:bg-green-600 md:col-span-2" disabled={createEmployee.isPending}>Créer le compte</Button>
+                </form>
               </CardContent>
             </Card>
 
-            {/* Employees List */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-slate-900">Employés existants</h3>
-              {users.filter(u => u.role === 'employee').map((employee) => (
-                <Card key={employee.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="font-medium text-slate-900">
-                            {employee.firstName} {employee.lastName}
-                          </h3>
-                          <Badge className="bg-blue-100 text-blue-800">
-                            Employé
-                          </Badge>
-                          {employee.isSuspended && (
-                            <Badge className="bg-red-100 text-red-800">
-                              Suspendu
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="text-sm text-slate-600 space-y-1">
-                          <div>Email: {employee.email}</div>
-                          {employee.phone && <div>Téléphone: {employee.phone}</div>}
-                          <div>Inscrit le {format(new Date(employee.createdAt), 'dd MMM yyyy', { locale: fr })}</div>
-                        </div>
-                      </div>
-
-                      {!employee.isSuspended && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSuspendUser(employee.id)}
-                          className="border-red-300 text-red-600 hover:bg-red-50"
-                        >
-                          <Ban className="w-4 h-4 mr-1" />
-                          Suspendre
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {employees.map((e) => (
+              <Card key={e.id}>
+                <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-slate-900 flex items-center gap-2">
+                      {e.firstName} {e.lastName}
+                      {!e.isActive && <Badge className="bg-red-100 text-red-800">Désactivé</Badge>}
+                    </p>
+                    <p className="text-sm text-slate-600">{e.email} · {e.position}</p>
+                  </div>
+                  {e.isActive && (
+                    <Button size="sm" variant="outline" className="border-red-300 text-red-700"
+                      onClick={() => deactivateEmployee.mutate(e.id)} disabled={deactivateEmployee.isPending}>
+                      Désactiver
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
           </TabsContent>
 
+          <TabsContent value="log">
+            <Card>
+              <CardHeader><CardTitle>Dernières actions</CardTitle></CardHeader>
+              <CardContent>
+                {actions.length === 0 ? <p className="text-slate-600">Aucune action enregistrée.</p> : (
+                  <ul className="divide-y">
+                    {actions.map((a, i) => (
+                      <li key={i} className="py-2 text-sm text-slate-700">
+                        <span className="font-medium">{ACTION_LABELS[a.action] ?? a.action}</span>
+                        {a.details?.email && ` · ${a.details.email}`}
+                        <span className="text-slate-500"> · {format(new Date(a.createdAt), "dd/MM/yyyy HH:mm")}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

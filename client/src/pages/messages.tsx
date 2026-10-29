@@ -20,7 +20,7 @@ interface Conversation {
     departureTime: string;
     driverName: string;
   };
-  lastMessage: {
+  lastMessage?: {
     message: string;
     senderName: string;
     createdAt: string;
@@ -42,7 +42,7 @@ export function MessagesPage() {
 
   // Récupérer toutes les conversations de l'utilisateur
   const { data: conversations = [], isLoading } = useQuery<Conversation[]>({
-    queryKey: [`/api/chat/conversations/${user?.profile?.id}`],
+    queryKey: ["/api/chat/conversations"], // l'utilisateur est identifié par son token
     enabled: !!user?.profile?.id,
   });
 

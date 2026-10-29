@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +9,22 @@ import { format } from "date-fns";
 interface SearchFormProps {
   onSearch: (departure: string, destination: string, date?: string) => void;
   loading?: boolean;
+  /** Valeurs pré-remplies (critères lus dans l'URL de la page de résultats). */
+  initialValues?: { departure: string; destination: string; date: string };
 }
 
-export function SearchForm({ onSearch, loading = false }: SearchFormProps) {
+export function SearchForm({ onSearch, loading = false, initialValues }: SearchFormProps) {
   const [departure, setDeparture] = useState("");
   const [destination, setDestination] = useState("");
   const [date, setDate] = useState("");
+
+  useEffect(() => {
+    if (initialValues) {
+      setDeparture(initialValues.departure);
+      setDestination(initialValues.destination);
+      setDate(initialValues.date);
+    }
+  }, [initialValues?.departure, initialValues?.destination, initialValues?.date]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

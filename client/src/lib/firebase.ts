@@ -26,11 +26,6 @@ const firebaseConfig = {
   appId: requiredEnvVars.appId,
 };
 
-console.log("Firebase config:", {
-  ...firebaseConfig,
-  apiKey: firebaseConfig.apiKey ? `${firebaseConfig.apiKey.substring(0, 10)}...` : "MISSING"
-});
-
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export default app;

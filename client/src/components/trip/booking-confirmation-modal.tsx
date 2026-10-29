@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, CreditCard, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { formatCredits } from "@/lib/labels";
 
 interface BookingConfirmationModalProps {
   trip: TripWithDriver | null;
@@ -91,7 +92,7 @@ export function BookingConfirmationModal({
                 </div>
                 <div className="flex justify-between font-medium">
                   <span>Total</span>
-                  <span>{totalPrice}€</span>
+                  <span>{formatCredits(totalPrice)}</span>
                 </div>
               </div>
             </CardContent>
@@ -108,17 +109,17 @@ export function BookingConfirmationModal({
                 <div className="flex justify-between">
                   <span className="text-slate-600">Vos crédits actuels</span>
                   <span className={userCredits >= totalPrice ? "text-green-600" : "text-red-600"}>
-                    {userCredits}€
+                    {formatCredits(userCredits)}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Coût de la réservation</span>
-                  <span>{totalPrice}€</span>
+                  <span>{formatCredits(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span>Crédits restants</span>
                   <span className={userCredits - totalPrice >= 0 ? "text-green-600" : "text-red-600"}>
-                    {userCredits - totalPrice}€
+                    {formatCredits(userCredits - totalPrice)}
                   </span>
                 </div>
               </div>
@@ -128,7 +129,7 @@ export function BookingConfirmationModal({
                   <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                   <p className="text-sm">
                     Vous n'avez pas assez de crédits pour effectuer cette réservation. 
-                    Veuillez recharger votre compte.
+                    Gagnez des crédits en proposant vous-même des trajets.
                   </p>
                 </div>
               )}
@@ -142,10 +143,10 @@ export function BookingConfirmationModal({
                 <Checkbox
                   id="confirm-credits"
                   checked={hasConfirmedCredits}
-                  onCheckedChange={setHasConfirmedCredits}
+                  onCheckedChange={(checked) => setHasConfirmedCredits(checked === true)}
                 />
                 <label htmlFor="confirm-credits" className="text-sm text-slate-700 leading-5">
-                  Je confirme que {totalPrice}€ seront déduits de mes crédits pour cette réservation.
+                  Je confirme que {formatCredits(totalPrice)} seront déduits de mes crédits pour cette réservation.
                 </label>
               </div>
 
@@ -153,11 +154,11 @@ export function BookingConfirmationModal({
                 <Checkbox
                   id="confirm-terms"
                   checked={hasConfirmedTerms}
-                  onCheckedChange={setHasConfirmedTerms}
+                  onCheckedChange={(checked) => setHasConfirmedTerms(checked === true)}
                 />
                 <label htmlFor="confirm-terms" className="text-sm text-slate-700 leading-5">
-                  J'accepte les conditions de réservation et comprends que l'annulation peut entraîner 
-                  des pénalités selon les conditions du conducteur.
+                  J'accepte les conditions de réservation. Je pourrai annuler gratuitement avant
+                  le départ : mes crédits me seront alors rendus.
                 </label>
               </div>
             </div>
