@@ -1,544 +1,383 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-import { createInsertSchema } from "drizzle-zod";
+/**
+ * ====================================================================
+ * Schéma de la base de données relationnelle (PostgreSQL) - Drizzle ORM
+ * ====================================================================
+ *
+ * Ce fichier est la SOURCE UNIQUE DE VÉRITÉ du modèle de données :
+ * - il sert à Drizzle pour générer des requêtes SQL typées et paramétrées
+ *   (protection contre les injections SQL) ;
+ * - le script `sql/schema.sql` en est la traduction SQL, utilisée par
+ *   Docker pour créer la base.
+ *
+ * Données relationnelles (ici) : utilisateurs, véhicules, trajets,
+ * réservations, avis, litiges, crédits gagnés par la plateforme...
+ * Données NoSQL (MongoDB, voir server/repositories/PreferenceRepository.ts) :
+ * préférences libres des chauffeurs et journal des actions admin.
+ * ====================================================================
+ */
+
+import {
+  pgTable, text, serial, integer, boolean, timestamp, decimal, date, check, uniqueIndex, index,
+} from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 import { z } from "zod";
 
+// --------------------------------------------------------------------
+// Valeurs autorisées (réutilisées par les validations Zod et le front)
+// --------------------------------------------------------------------
+export const USER_ROLES = ["passenger", "driver", "both", "admin"] as const;
+export const ENERGY_TYPES = ["electric", "hybrid", "gasoline", "diesel"] as const;
+export const TRIP_STATUSES = ["pending", "started", "completed", "cancelled"] as const;
+export const BOOKING_STATUSES = [
+  "confirmed",            // place réservée, crédits débités du passager
+  "cancelled",            // annulée (par le passager ou le chauffeur), crédits remboursés
+  "awaiting_validation",  // trajet terminé, le passager doit confirmer que tout s'est bien passé
+  "validated",            // le passager a validé : le chauffeur a été payé
+  "disputed",             // le passager a signalé un problème : un employé doit trancher
+  "refunded",             // litige tranché en faveur du passager
+] as const;
+export const EMPLOYEE_PERMISSIONS = ["ratings", "trip_issues"] as const;
+
+// --------------------------------------------------------------------
+// Utilisateurs (passagers / chauffeurs / administrateur)
+// --------------------------------------------------------------------
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  firebaseUid: text("firebase_uid").notNull().unique(),
+  firebaseUid: text("firebase_uid").notNull().unique(), // lien avec le compte Firebase Authentication
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phone: text("phone"),
-  role: text("role").notNull().default("passenger"), // "driver" | "passenger" | "both" | "employee" | "admin"
-  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).default("0"),
+  role: text("role").notNull().default("passenger"),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }).notNull().default("0"),
   totalRatings: integer("total_ratings").notNull().default(0),
-  credits: decimal("credits", { precision: 10, scale: 2 }).notNull().default("20.00"), // 20 crédits à l'inscription selon les consignes
-  isVerified: boolean("is_verified").notNull().default(false),
+  credits: decimal("credits", { precision: 10, scale: 2 }).notNull().default("20.00"), // 20 crédits offerts à l'inscription
   isSuspended: boolean("is_suspended").notNull().default(false),
-  // Stripe integration
-  stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  // Profile enhancements
-  bio: text("bio"),
-  profilePicture: text("profile_picture"),
-  // Gamification
-  ecoPoints: integer("eco_points").notNull().default(0),
-  badgeIds: text("badge_ids").array().notNull().default([]),
-  // Preferences
-  preferences: text("preferences"), // JSON string for user preferences
-
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  check("users_role_check", sql`${t.role} IN ('passenger', 'driver', 'both', 'admin')`),
+  check("users_credits_positive", sql`${t.credits} >= 0`), // un solde ne peut jamais être négatif
+]);
 
+// --------------------------------------------------------------------
+// Véhicules : un chauffeur possède 0..n véhicules
+// --------------------------------------------------------------------
+export const vehicles = pgTable("vehicles", {
+  id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  plate: text("plate").notNull().unique(),
+  firstRegistrationDate: date("first_registration_date").notNull(),
+  brand: text("brand").notNull(),
+  model: text("model").notNull(),
+  color: text("color").notNull(),
+  energy: text("energy").notNull(), // un trajet est « écologique » si energy = 'electric'
+  seats: integer("seats").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  check("vehicles_energy_check", sql`${t.energy} IN ('electric', 'hybrid', 'gasoline', 'diesel')`),
+  check("vehicles_seats_check", sql`${t.seats} BETWEEN 1 AND 8`),
+]);
+
+// --------------------------------------------------------------------
+// Trajets (covoiturages) : un chauffeur propose 0..n trajets avec 1 véhicule
+// --------------------------------------------------------------------
 export const trips = pgTable("trips", {
   id: serial("id").primaryKey(),
-  driverId: integer("driver_id").notNull(),
+  driverId: integer("driver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  vehicleId: integer("vehicle_id").notNull().references(() => vehicles.id, { onDelete: "restrict" }),
   departure: text("departure").notNull(),
   destination: text("destination").notNull(),
   departureTime: timestamp("departure_time").notNull(),
   arrivalTime: timestamp("arrival_time").notNull(),
   availableSeats: integer("available_seats").notNull(),
   totalSeats: integer("total_seats").notNull(),
-  pricePerSeat: decimal("price_per_seat", { precision: 10, scale: 2 }).notNull(),
+  pricePerSeat: decimal("price_per_seat", { precision: 10, scale: 2 }).notNull(), // en crédits
   description: text("description"),
-  isActive: boolean("is_active").notNull().default(true),
-  status: text("status").notNull().default("pending"), // "pending" | "started" | "completed" | "cancelled"
+  status: text("status").notNull().default("pending"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
-  // Vehicle information (OBLIGATOIRE selon les consignes)
-  vehicleType: text("vehicle_type").notNull(), // "electric" | "hybrid" | "gasoline" | "diesel"
-  vehicleBrand: text("vehicle_brand").notNull(),
-  vehicleModel: text("vehicle_model").notNull(),
-  isEcological: boolean("is_ecological").notNull().default(false), // true seulement si véhicule électrique
-  // Enhanced location data
-  departureCoordinates: text("departure_coordinates"), // JSON: {lat, lng}
-  destinationCoordinates: text("destination_coordinates"), // JSON: {lat, lng}
-  pickupPoints: text("pickup_points").array().default([]), // Array of pickup point descriptions
-  // Recurring trips
-  isRecurring: boolean("is_recurring").notNull().default(false),
-  recurringDays: text("recurring_days").array().default([]), // ["monday", "tuesday", etc.]
-  // Weather and preferences
-  preferences: text("preferences"), // JSON: smoking, music, etc.
-  weatherConditions: text("weather_conditions"),
-  // AI predictions
-  predictedPrice: decimal("predicted_price", { precision: 10, scale: 2 }),
-  demandScore: integer("demand_score"), // 1-100
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  check("trips_status_check", sql`${t.status} IN ('pending', 'started', 'completed', 'cancelled')`),
+  check("trips_seats_check", sql`${t.availableSeats} >= 0 AND ${t.availableSeats} <= ${t.totalSeats}`),
+  check("trips_price_check", sql`${t.pricePerSeat} > 2`), // le prix doit couvrir les 2 crédits de la plateforme
+  check("trips_dates_check", sql`${t.arrivalTime} > ${t.departureTime}`),
+  index("trips_search_idx").on(t.departure, t.destination, t.departureTime), // accélère la recherche
+]);
 
+// --------------------------------------------------------------------
+// Réservations : un passager réserve 1..n places sur un trajet
+// --------------------------------------------------------------------
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
-  passengerId: integer("passenger_id").notNull(),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  passengerId: integer("passenger_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   seatsBooked: integer("seats_booked").notNull(),
   totalPrice: decimal("total_price", { precision: 10, scale: 2 }).notNull(),
-  status: text("status").notNull().default("pending"), // "pending" | "confirmed" | "cancelled" | "completed"
+  status: text("status").notNull().default("confirmed"),
   message: text("message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (t) => [
+  check("bookings_seats_check", sql`${t.seatsBooked} > 0`),
+  check("bookings_status_check", sql`${t.status} IN ('confirmed', 'cancelled', 'awaiting_validation', 'validated', 'disputed', 'refunded')`),
+]);
 
-export const ratings = pgTable("ratings", {
+// --------------------------------------------------------------------
+// Employés (comptes séparés, créés par l'administrateur)
+// --------------------------------------------------------------------
+export const employees = pgTable("employees", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
-  raterId: integer("rater_id").notNull(),
-  rateeId: integer("ratee_id").notNull(),
-  rating: integer("rating").notNull(), // 1-5
-  comment: text("comment"),
-  isApproved: boolean("is_approved"), // null = pending, true = approved, false = rejected
-  reviewedBy: integer("reviewed_by"), // employee who reviewed
-  reviewedAt: timestamp("reviewed_at"),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(), // hash bcrypt, jamais le mot de passe en clair
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone"),
+  position: text("position").notNull(),
+  permissions: text("permissions").array().notNull().default(sql`ARRAY[]::text[]`),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: integer("created_by").notNull().references(() => users.id),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// New table for trip issues/complaints
+// --------------------------------------------------------------------
+// Avis : publiés seulement après validation par un employé
+// --------------------------------------------------------------------
+export const ratings = pgTable("ratings", {
+  id: serial("id").primaryKey(),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  raterId: integer("rater_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rateeId: integer("ratee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  rating: integer("rating").notNull(),
+  comment: text("comment"),
+  isApproved: boolean("is_approved"), // null = en attente, true = publié, false = refusé
+  reviewedBy: integer("reviewed_by").references(() => employees.id),
+  reviewedAt: timestamp("reviewed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => [
+  check("ratings_value_check", sql`${t.rating} BETWEEN 1 AND 5`),
+  uniqueIndex("ratings_one_per_trip").on(t.tripId, t.raterId), // un seul avis par passager et par trajet
+]);
+
+// --------------------------------------------------------------------
+// Litiges : un passager signale qu'un trajet s'est mal passé
+// --------------------------------------------------------------------
 export const tripIssues = pgTable("trip_issues", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
-  reporterId: integer("reporter_id").notNull(),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+  reporterId: integer("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   issueDescription: text("issue_description").notNull(),
-  status: text("status").notNull().default("pending"), // "pending" | "resolved" | "investigating"
-  handledBy: integer("handled_by"), // employee ID
+  status: text("status").notNull().default("pending"), // "pending" | "resolved"
+  decision: text("decision"), // "pay_driver" | "refund_passenger"
+  handledBy: integer("handled_by").references(() => employees.id),
   resolution: text("resolution"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   resolvedAt: timestamp("resolved_at"),
 });
 
-// Platform credits/earnings tracking
+// --------------------------------------------------------------------
+// Crédits gagnés par la plateforme (2 crédits par réservation payée)
+// --------------------------------------------------------------------
 export const platformEarnings = pgTable("platform_earnings", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  bookingId: integer("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   date: timestamp("date").notNull().defaultNow(),
 });
 
-// Chat messages for real-time communication
+// --------------------------------------------------------------------
+// Messagerie entre participants d'un trajet
+// --------------------------------------------------------------------
 export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
-  senderId: integer("sender_id").notNull(),
+  tripId: integer("trip_id").notNull().references(() => trips.id, { onDelete: "cascade" }),
+  senderId: integer("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   message: text("message").notNull(),
-  messageType: text("message_type").notNull().default("text"), // "text" | "system" | "location"
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Notifications system
+// --------------------------------------------------------------------
+// Notifications (ex. : « votre trajet a été annulé par le chauffeur »)
+// --------------------------------------------------------------------
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   message: text("message").notNull(),
-  type: text("type").notNull(), // "trip_update" | "booking" | "payment" | "system"
   isRead: boolean("is_read").notNull().default(false),
-  actionUrl: text("action_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// User friends/contacts system
-export const userFriends = pgTable("user_friends", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  friendId: integer("friend_id").notNull(),
-  status: text("status").notNull().default("pending"), // "pending" | "accepted" | "blocked"
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Gamification badges
-export const badges = pgTable("badges", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  icon: text("icon").notNull(),
-  condition: text("condition").notNull(), // JSON describing how to earn this badge
-  points: integer("points").notNull().default(0),
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// User achievements/badges earned
-export const userBadges = pgTable("user_badges", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  badgeId: integer("badge_id").notNull(),
-  earnedAt: timestamp("earned_at").notNull().defaultNow(),
-});
-
-// Recurring trip schedules
-export const recurringTrips = pgTable("recurring_trips", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  departure: text("departure").notNull(),
-  destination: text("destination").notNull(),
-  departureTime: text("departure_time").notNull(), // Time in HH:mm format
-  daysOfWeek: text("days_of_week").array().notNull(), // ["monday", "tuesday", etc.]
-  isActive: boolean("is_active").notNull().default(true),
-  lastCreatedAt: timestamp("last_created_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Payment transactions
-export const payments = pgTable("payments", {
-  id: serial("id").primaryKey(),
-  bookingId: integer("booking_id").notNull(),
-  userId: integer("user_id").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  currency: text("currency").notNull().default("EUR"),
-  status: text("status").notNull(), // "pending" | "completed" | "failed" | "refunded"
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
-  metadata: text("metadata"), // JSON for additional payment info
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
-
-// Analytics data for AI predictions
-export const tripAnalytics = pgTable("trip_analytics", {
-  id: serial("id").primaryKey(),
-  tripId: integer("trip_id").notNull(),
-  viewCount: integer("view_count").notNull().default(0),
-  bookingAttempts: integer("booking_attempts").notNull().default(0),
-  conversionRate: decimal("conversion_rate", { precision: 5, scale: 4 }),
-  avgResponseTime: integer("avg_response_time"), // in minutes
-  popularityScore: integer("popularity_score"), // 1-100
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Reports and moderation tables
-export const userReports = pgTable("user_reports", {
-  id: serial("id").primaryKey(),
-  reporterId: integer("reporter_id").notNull().references(() => users.id),
-  reportedUserId: integer("reported_user_id").notNull().references(() => users.id),
-  tripId: integer("trip_id").references(() => trips.id),
-  reason: text("reason").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("pending"),
-  priority: text("priority").notNull().default("medium"),
-  reviewedBy: integer("reviewed_by").references(() => users.id),
-  reviewedAt: timestamp("reviewed_at"),
-  resolution: text("resolution"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const adminActions = pgTable("admin_actions", {
-  id: serial("id").primaryKey(),
-  adminId: integer("admin_id").notNull().references(() => users.id),
-  action: text("action").notNull(),
-  targetType: text("target_type").notNull(),
-  targetId: integer("target_id").notNull(),
-  details: text("details"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const systemSettings = pgTable("system_settings", {
-  id: serial("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  value: text("value").notNull(),
-  description: text("description"),
-  updatedBy: integer("updated_by").references(() => users.id),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// Table pour les comptes employés
-export const employees = pgTable("employees", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(), // Hash du mot de passe
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
-  phone: text("phone"),
-  position: text("position").notNull(), // Poste/fonction
-  permissions: text("permissions").array().notNull().default([]), // Permissions spécifiques
-  isActive: boolean("is_active").notNull().default(true),
-  createdBy: integer("created_by").notNull().references(() => users.id), // ID de l'admin qui a créé le compte
-  lastLoginAt: timestamp("last_login_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
-
-// Insert schemas
-// Additional insert schemas for new tables
-export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({
-  id: true,
-  isRead: true,
-  createdAt: true,
-});
-
-export const insertNotificationSchema = createInsertSchema(notifications).omit({
-  id: true,
-  isRead: true,
-  createdAt: true,
-});
-
-export const insertUserFriendSchema = createInsertSchema(userFriends).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertBadgeSchema = createInsertSchema(badges).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertUserBadgeSchema = createInsertSchema(userBadges).omit({
-  id: true,
-  earnedAt: true,
-});
-
-export const insertRecurringTripSchema = createInsertSchema(recurringTrips).omit({
-  id: true,
-  lastCreatedAt: true,
-  createdAt: true,
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertTripAnalyticsSchema = createInsertSchema(tripAnalytics).omit({
-  id: true,
-  updatedAt: true,
-});
-
-export const insertUserReportSchema = createInsertSchema(userReports).omit({
-  id: true,
-  createdAt: true,
-  reviewedAt: true,
-});
-
-export const insertAdminActionSchema = createInsertSchema(adminActions).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertSystemSettingSchema = createInsertSchema(systemSettings).omit({
-  id: true,
-  updatedAt: true,
-});
-
-// Supprimé - défini plus bas avec les extensions
-
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  averageRating: true,
-  totalRatings: true,
-  credits: true,
-  isVerified: true,
-  isSuspended: true,
-  ecoPoints: true,
-  badgeIds: true,
-  createdAt: true,
-});
-
-export const insertTripSchemaEnhanced = createInsertSchema(trips).omit({
-  id: true,
-  isActive: true,
-  status: true,
-  startedAt: true,
-  completedAt: true,
-  isRecurring: true,
-  recurringDays: true,
-  departureCoordinates: true,
-  destinationCoordinates: true,
-  pickupPoints: true,
-  preferences: true,
-  weatherConditions: true,
-  predictedPrice: true,
-  demandScore: true,
-  createdAt: true,
-});
-
-// Export the original simpler version for backward compatibility
-export const insertTripSchema = insertTripSchemaEnhanced.pick({
-  driverId: true,
-  departure: true,
-  destination: true,
-  departureTime: true,
-  arrivalTime: true,
-  availableSeats: true,
-  totalSeats: true,
-  pricePerSeat: true,
-  description: true,
-});
-
-export const insertBookingSchema = createInsertSchema(bookings).omit({
-  id: true,
-  status: true,
-  createdAt: true,
-});
-
-export const insertRatingSchema = createInsertSchema(ratings).omit({
-  id: true,
-  isApproved: true,
-  reviewedBy: true,
-  reviewedAt: true,
-  createdAt: true,
-});
-
-export const insertTripIssueSchema = createInsertSchema(tripIssues).omit({
-  id: true,
-  status: true,
-  handledBy: true,
-  resolution: true,
-  createdAt: true,
-  resolvedAt: true,
-});
-
-export const insertPlatformEarningsSchema = createInsertSchema(platformEarnings).omit({
-  id: true,
-  date: true,
-});
-
-// Relations
+// ====================================================================
+// Relations Drizzle (utilisées pour les jointures typées)
+// ====================================================================
 export const usersRelations = relations(users, ({ many }) => ({
+  vehicles: many(vehicles),
   tripsAsDriver: many(trips),
-  bookingsAsPassenger: many(bookings, { relationName: "passenger" }),
-  ratingsGiven: many(ratings, { relationName: "rater" }),
-  ratingsReceived: many(ratings, { relationName: "ratee" }),
-  issuesReported: many(tripIssues, { relationName: "reporter" }),
-  ratingsReviewed: many(ratings, { relationName: "reviewer" }),
-  issuesHandled: many(tripIssues, { relationName: "handler" }),
-  sentMessages: many(chatMessages, { relationName: "sender" }),
-  notifications: many(notifications),
-  friendsInitiated: many(userFriends, { relationName: "user" }),
-  friendsReceived: many(userFriends, { relationName: "friend" }),
-  badges: many(userBadges),
-  recurringTrips: many(recurringTrips),
-  payments: many(payments),
+  bookings: many(bookings),
+}));
+
+export const vehiclesRelations = relations(vehicles, ({ one, many }) => ({
+  owner: one(users, { fields: [vehicles.ownerId], references: [users.id] }),
+  trips: many(trips),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
-  driver: one(users, {
-    fields: [trips.driverId],
-    references: [users.id],
-  }),
+  driver: one(users, { fields: [trips.driverId], references: [users.id] }),
+  vehicle: one(vehicles, { fields: [trips.vehicleId], references: [vehicles.id] }),
   bookings: many(bookings),
-  ratings: many(ratings),
-  issues: many(tripIssues),
-  earnings: many(platformEarnings),
-  chatMessages: many(chatMessages),
-  analytics: one(tripAnalytics),
 }));
 
 export const bookingsRelations = relations(bookings, ({ one }) => ({
-  trip: one(trips, {
-    fields: [bookings.tripId],
-    references: [trips.id],
-  }),
-  passenger: one(users, {
-    fields: [bookings.passengerId],
-    references: [users.id],
-    relationName: "passenger",
-  }),
+  trip: one(trips, { fields: [bookings.tripId], references: [trips.id] }),
+  passenger: one(users, { fields: [bookings.passengerId], references: [users.id] }),
 }));
 
-export const ratingsRelations = relations(ratings, ({ one }) => ({
-  trip: one(trips, {
-    fields: [ratings.tripId],
-    references: [trips.id],
-  }),
-  rater: one(users, {
-    fields: [ratings.raterId],
-    references: [users.id],
-    relationName: "rater",
-  }),
-  ratee: one(users, {
-    fields: [ratings.rateeId],
-    references: [users.id],
-    relationName: "ratee",
-  }),
-  reviewer: one(users, {
-    fields: [ratings.reviewedBy],
-    references: [users.id],
-    relationName: "reviewer",
-  }),
-}));
+// ====================================================================
+// Schémas de validation Zod des données ENVOYÉES PAR LE CLIENT
+// ====================================================================
+// Principe de sécurité (anti « mass assignment ») : chaque schéma liste
+// explicitement les seuls champs que le client a le droit d'envoyer.
+// Les champs sensibles (id, crédits, rôle admin, statut, driverId...)
+// ne sont JAMAIS lus dans le corps de la requête : ils viennent du token.
 
-export const tripIssuesRelations = relations(tripIssues, ({ one }) => ({
-  trip: one(trips, {
-    fields: [tripIssues.tripId],
-    references: [trips.id],
-  }),
-  reporter: one(users, {
-    fields: [tripIssues.reporterId],
-    references: [users.id],
-    relationName: "reporter",
-  }),
-  handler: one(users, {
-    fields: [tripIssues.handledBy],
-    references: [users.id],
-    relationName: "handler",
-  }),
-}));
-
-// Types
-export type User = typeof users.$inferSelect;
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type Trip = typeof trips.$inferSelect;
-export type InsertTrip = z.infer<typeof insertTripSchema>;
-export type Booking = typeof bookings.$inferSelect;
-export type InsertBooking = z.infer<typeof insertBookingSchema>;
-export type Rating = typeof ratings.$inferSelect;
-export type InsertRating = z.infer<typeof insertRatingSchema>;
-export type TripIssue = typeof tripIssues.$inferSelect;
-export type InsertTripIssue = z.infer<typeof insertTripIssueSchema>;
-export type PlatformEarnings = typeof platformEarnings.$inferSelect;
-export type InsertPlatformEarnings = z.infer<typeof insertPlatformEarningsSchema>;
-
-// New types for additional tables
-export type ChatMessage = typeof chatMessages.$inferSelect;
-export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
-export type Notification = typeof notifications.$inferSelect;
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type UserFriend = typeof userFriends.$inferSelect;
-export type InsertUserFriend = z.infer<typeof insertUserFriendSchema>;
-export type Badge = typeof badges.$inferSelect;
-export type InsertBadge = z.infer<typeof insertBadgeSchema>;
-export type UserBadge = typeof userBadges.$inferSelect;
-export type InsertUserBadge = z.infer<typeof insertUserBadgeSchema>;
-export type RecurringTrip = typeof recurringTrips.$inferSelect;
-export type InsertRecurringTrip = z.infer<typeof insertRecurringTripSchema>;
-export type Payment = typeof payments.$inferSelect;
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-export type TripAnalytics = typeof tripAnalytics.$inferSelect;
-export type InsertTripAnalytics = z.infer<typeof insertTripAnalyticsSchema>;
-
-export type UserReport = typeof userReports.$inferSelect;
-export type InsertUserReport = z.infer<typeof insertUserReportSchema>;
-
-export type AdminAction = typeof adminActions.$inferSelect;
-export type InsertAdminAction = z.infer<typeof insertAdminActionSchema>;
-
-export type SystemSetting = typeof systemSettings.$inferSelect;
-export type InsertSystemSetting = z.infer<typeof insertSystemSettingSchema>;
-
-export type Employee = typeof employees.$inferSelect;
-export type InsertEmployee = typeof employees.$inferInsert;
-
-// Schéma de validation pour la création d'employés (sans createdBy qui sera ajouté côté serveur)
-export const insertEmployeeSchema = createInsertSchema(employees).extend({
-  password: z.string().min(6, "Le mot de passe doit faire au moins 6 caractères"),
-  permissions: z.array(z.string()).default([])
-}).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true, 
-  lastLoginAt: true,
-  isActive: true,
-  createdBy: true  // Omis car ajouté côté serveur
+export const registerUserSchema = z.object({
+  firstName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().min(1).max(50),
+  phone: z.string().trim().max(20).optional(),
+  role: z.enum(["passenger", "driver", "both"]), // impossible de s'inscrire « admin »
 });
 
-// Extended types for API responses
+export const updateProfileSchema = registerUserSchema.partial();
+
+export const insertVehicleSchema = z.object({
+  plate: z.string().trim().min(4).max(15).transform((p) => p.toUpperCase()),
+  firstRegistrationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format attendu : AAAA-MM-JJ"),
+  brand: z.string().trim().min(1).max(50),
+  model: z.string().trim().min(1).max(50),
+  color: z.string().trim().min(1).max(30),
+  energy: z.enum(ENERGY_TYPES),
+  seats: z.coerce.number().int().min(1).max(8),
+});
+
+export const insertTripSchema = z.object({
+  vehicleId: z.coerce.number().int().positive(),
+  departure: z.string().trim().min(1).max(100),
+  destination: z.string().trim().min(1).max(100),
+  departureTime: z.coerce.date(),
+  arrivalTime: z.coerce.date(),
+  totalSeats: z.coerce.number().int().min(1).max(8),
+  pricePerSeat: z.coerce.number().gt(2, "Le prix doit être supérieur aux 2 crédits de la plateforme").max(500),
+  description: z.string().trim().max(500).optional(),
+}).refine((t) => t.arrivalTime > t.departureTime, {
+  message: "L'arrivée doit être après le départ", path: ["arrivalTime"],
+});
+
+export const searchTripSchema = z.object({
+  departure: z.string().trim().min(1),
+  destination: z.string().trim().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")), // "AAAA-MM-JJ"
+  ecologicalOnly: z.boolean().optional(),  // filtre US4 : trajets en voiture électrique
+  maxPrice: z.coerce.number().positive().optional(),
+  maxDurationMinutes: z.coerce.number().int().positive().optional(),
+  minRating: z.coerce.number().min(0).max(5).optional(),
+});
+
+export const insertBookingSchema = z.object({
+  tripId: z.coerce.number().int().positive(),
+  seatsBooked: z.coerce.number().int().min(1).max(8),
+  message: z.string().trim().max(300).nullish(),
+});
+
+export const insertRatingSchema = z.object({
+  tripId: z.coerce.number().int().positive(),
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().trim().max(500).optional(),
+});
+
+export const reportIssueSchema = z.object({
+  description: z.string().trim().min(10, "Décrivez le problème (10 caractères minimum)").max(1000),
+});
+
+export const resolveIssueSchema = z.object({
+  decision: z.enum(["pay_driver", "refund_passenger"]),
+  resolution: z.string().trim().min(3).max(1000),
+});
+
+export const insertChatMessageSchema = z.object({
+  tripId: z.coerce.number().int().positive(),
+  message: z.string().trim().min(1).max(1000),
+});
+
+export const insertEmployeeSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(8, "8 caractères minimum")
+    .regex(/[A-Z]/, "Au moins une majuscule").regex(/[0-9]/, "Au moins un chiffre"),
+  firstName: z.string().trim().min(1).max(50),
+  lastName: z.string().trim().min(1).max(50),
+  phone: z.string().trim().max(20).optional(),
+  position: z.string().trim().min(1).max(50).default("Support Client"),
+  permissions: z.array(z.enum(EMPLOYEE_PERMISSIONS)).default(["ratings", "trip_issues"]),
+});
+
+export const employeeLoginSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(1),
+});
+
+// Préférences du chauffeur (stockées en NoSQL car leur structure est libre)
+export const driverPreferencesSchema = z.object({
+  smoker: z.boolean(),
+  animals: z.boolean(),
+  custom: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
+});
+
+// ====================================================================
+// Types TypeScript dérivés du schéma
+// ====================================================================
+export type User = typeof users.$inferSelect;
+export type Vehicle = typeof vehicles.$inferSelect;
+export type Trip = typeof trips.$inferSelect;
+export type Booking = typeof bookings.$inferSelect;
+export type Rating = typeof ratings.$inferSelect;
+export type TripIssue = typeof tripIssues.$inferSelect;
+export type Employee = typeof employees.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type Notification = typeof notifications.$inferSelect;
+
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+export type InsertVehicle = z.infer<typeof insertVehicleSchema>;
+export type InsertTrip = z.infer<typeof insertTripSchema>;
+export type SearchTrip = z.infer<typeof searchTripSchema>;
+export type InsertBooking = z.infer<typeof insertBookingSchema>;
+export type InsertRating = z.infer<typeof insertRatingSchema>;
+export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+export type DriverPreferences = z.infer<typeof driverPreferencesSchema>;
+
+/** Employé tel que renvoyé par l'API (sans le hash du mot de passe). */
+export type PublicEmployee = Omit<Employee, "password">;
+
+/** Trajet enrichi renvoyé par l'API (chauffeur + véhicule). */
 export type TripWithDriver = Trip & {
-  driver: Pick<User, 'id' | 'firstName' | 'lastName' | 'averageRating' | 'totalRatings'>;
+  driver: Pick<User, "id" | "firstName" | "lastName" | "averageRating" | "totalRatings">;
+  vehicle: Pick<Vehicle, "brand" | "model" | "color" | "energy">;
+  isEcological: boolean;
 };
 
-export type BookingWithTrip = Booking & {
-  trip: TripWithDriver;
+export type BookingWithTrip = Booking & { trip: TripWithDriver };
+
+/** Réponse de la recherche : si aucun trajet, on propose la date la plus proche (US3). */
+export type SearchTripsResponse = {
+  trips: TripWithDriver[];
+  suggestedDate: string | null;
 };
 
-export type TripWithDetails = Trip & {
-  driver: Pick<User, 'id' | 'firstName' | 'lastName' | 'email' | 'phone'>;
-  bookings: (Booking & {
-    passenger: Pick<User, 'id' | 'firstName' | 'lastName' | 'email'>;
-  })[];
+/** Détail d'un trajet (US5) : avis publiés et préférences du chauffeur. */
+export type TripDetails = TripWithDriver & {
+  reviews: Pick<Rating, "id" | "rating" | "comment" | "createdAt">[];
+  driverPreferences: DriverPreferences | null;
 };
