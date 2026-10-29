@@ -17,7 +17,7 @@ import {
 import { FirebaseTokenVerifier } from "./security/TokenVerifier";
 import { createContainer } from "./container";
 import { createApp } from "./app";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./static";
 
 async function main() {
   const postgres = createPostgresDatabase();
@@ -41,6 +41,8 @@ async function main() {
   if (isProduction) {
     serveStatic(app);
   } else {
+    // Import dynamique : Vite n'est chargé (et installé) qu'en développement
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   }
 

@@ -4,3 +4,8 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+# Secrets : ne jamais commiter
+.env
+.env.local
+# Migrations générées en local par drizzle-kit
+migrations
