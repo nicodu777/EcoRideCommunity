@@ -9,3 +9,6 @@ vite.config.ts.*
 .env.local
 # Migrations générées en local par drizzle-kit
 migrations
+
+# Documents personnels (dossier projet, audit) : non publiés
+docs/
