@@ -15,10 +15,11 @@ EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et 
 3. [Architecture](#architecture)
 4. [Installation locale](#installation-locale)
 5. [Installation avec Docker](#installation-avec-docker)
-6. [Comptes de démonstration](#comptes-de-démonstration)
-7. [Tests](#tests)
-8. [Sécurité](#sécurité)
-9. [Workflow Git](#workflow-git)
+6. [Déploiement en ligne (Render + Neon)](#déploiement-en-ligne-render--neon)
+7. [Comptes de démonstration](#comptes-de-démonstration)
+8. [Tests](#tests)
+9. [Sécurité](#sécurité)
+10. [Workflow Git](#workflow-git)
 
 ---
 
@@ -114,6 +115,16 @@ docker compose up -d --build
 ```
 
 PostgreSQL est créé automatiquement avec `sql/schema.sql` puis `sql/seed.sql`, et MongoDB démarre à côté.
+
+## Déploiement en ligne (Render + Neon)
+
+L'application est décrite dans `render.yaml` (Blueprint Render) et construite avec le `Dockerfile`.
+
+1. **Base PostgreSQL (Neon)** : créer un projet, puis exécuter `sql/schema.sql` puis `sql/seed.sql` dans l'éditeur SQL. Copier la chaîne de connexion (`postgresql://...?sslmode=require`).
+2. **Firebase** : *Authentication → Settings → Authorized domains* : ajouter le domaine `xxx.onrender.com`.
+3. **Render** : *New → Blueprint*, choisir ce dépôt, puis renseigner `DATABASE_URL`, `FIREBASE_PROJECT_ID` et les trois `VITE_FIREBASE_*`. `JWT_SECRET` est généré par Render.
+
+Chaque fusion dans `main` est redéployée automatiquement, une fois la CI au vert. Sur l'offre gratuite, le service se met en veille après 15 minutes sans visite : la première requête prend alors environ une minute.
 
 ## Comptes de démonstration
 

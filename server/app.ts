@@ -14,7 +14,7 @@ import { errorHandler } from "./middlewares/errorHandler";
 export function createApp(container: Container, options: { production: boolean }): Express {
   const app = express();
   app.disable("x-powered-by"); // ne pas annoncer la technologie utilisée
-  app.set("trust proxy", 1);   // derrière le proxy de Replit/Docker : vraie IP du client pour le rate limit
+  app.set("trust proxy", 1);   // derrière le proxy de l'hébergeur (Render) : vraie IP du client pour le rate limit
 
   /**
    * En-têtes de sécurité HTTP (helmet) :

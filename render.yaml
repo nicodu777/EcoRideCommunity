@@ -1,0 +1,34 @@
+# ====================================================================
+# Déploiement sur Render (Blueprint) : Render → New → Blueprint → ce dépôt
+# ====================================================================
+# - L'image est construite avec le Dockerfile du dépôt.
+# - La base PostgreSQL est externe (Neon) : DATABASE_URL est demandée à
+#   la création du Blueprint, comme les clés Firebase.
+# - JWT_SECRET est généré aléatoirement par Render.
+# - Le déploiement ne part qu'une fois la CI GitHub au vert sur main.
+# - MONGO_URL est optionnelle : sans elle, préférences et journal admin
+#   sont gardés en mémoire (perdus au redémarrage).
+# ====================================================================
+services:
+  - type: web
+    name: ecoride
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeployTrigger: checksPass
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      # Lues au moment du build par Vite (Render les transmet au Dockerfile)
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_PROJECT_ID
+        sync: false
+      - key: VITE_FIREBASE_APP_ID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
