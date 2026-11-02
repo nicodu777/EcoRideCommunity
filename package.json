@@ -10,6 +10,7 @@
     "check": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
+    "demo": "node scripts/demo/start.mjs",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate"
   },

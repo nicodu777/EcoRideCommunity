@@ -3,7 +3,7 @@
  *
  * Toutes les valeurs sensibles (URL de base, secret JWT...) viennent des
  * variables d'environnement (fichier .env en local, variables Docker ou
- * Replit en production). Aucun secret n'est écrit dans le code source.
+ * de l'hébergeur en production). Aucun secret n'est écrit dans le code source.
  */
 import "dotenv/config";
 
@@ -33,3 +33,9 @@ export const env = {
 };
 
 export const isProduction = env.nodeEnv === "production";
+
+// L'émulateur d'authentification accepte des tokens non signés : il est
+// réservé à la démo locale et interdit en production.
+if (isProduction && process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+  throw new Error("FIREBASE_AUTH_EMULATOR_HOST est interdit en production");
+}
