@@ -12,3 +12,6 @@ migrations
 
 # Documents personnels (dossier projet, audit) : non publiés
 docs/
+
+# Base de données du mode démo (recréée à chaque lancement)
+.demo/

@@ -13,13 +13,14 @@ EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et 
 1. [Fonctionnalités](#fonctionnalités)
 2. [Stack technique](#stack-technique)
 3. [Architecture](#architecture)
-4. [Installation locale](#installation-locale)
-5. [Installation avec Docker](#installation-avec-docker)
-6. [Déploiement en ligne (Render + Neon)](#déploiement-en-ligne-render--neon)
-7. [Comptes de démonstration](#comptes-de-démonstration)
-8. [Tests](#tests)
-9. [Sécurité](#sécurité)
-10. [Workflow Git](#workflow-git)
+4. [Démo locale en un double-clic](#démo-locale-en-un-double-clic)
+5. [Installation locale](#installation-locale)
+6. [Installation avec Docker](#installation-avec-docker)
+7. [Déploiement en ligne (Render + Neon)](#déploiement-en-ligne-render--neon)
+8. [Comptes de démonstration](#comptes-de-démonstration)
+9. [Tests](#tests)
+10. [Sécurité](#sécurité)
+11. [Workflow Git](#workflow-git)
 
 ---
 
@@ -80,6 +81,17 @@ Navigateur ──POST /api/bookings + Authorization: Bearer <token>──▶ req
   ──▶ bookingRoutes (valide le corps avec Zod) ──▶ BookingService.reserve (règles + transaction)
   ──▶ TripRepository / UserRepository / BookingRepository (SQL paramétré) ──▶ PostgreSQL
 ```
+
+## Démo locale en un double-clic
+
+Prérequis : Node.js 20+ et PostgreSQL installé (aucun compte, aucune clé, pas besoin d'Internet).
+
+- **`DEMARRER-ECORIDE.bat`** (ou `npm run demo`) : crée une base PostgreSQL neuve dans `.demo/` (schéma, jeu d'essai et données de démonstration), démarre un émulateur d'authentification Firebase local, lance l'application et ouvre `http://localhost:5000`. Fermer la fenêtre arrête tout.
+- **`OUVRIR-CODE-DEMO.bat`** : ouvre VS Code sur les fichiers clés, chacun à la bonne ligne.
+
+Comptes : `admin@ecoride.com`, `marie.dupont@email.com`, `pierre.martin@email.com`, `sophie.bernard@email.com`, `lucas.petit@email.com` avec le mot de passe `Demo2026!` ; employé : `employe@ecoride.com` / `Employe2026!` sur `/employee/login`.
+
+> L'émulateur (`scripts/demo/auth-emulator.mjs`) n'écoute que sur 127.0.0.1 et ses tokens ne sont acceptés que par un serveur lancé en mode émulateur : il ne sert qu'à la démonstration.
 
 ## Installation locale
 
