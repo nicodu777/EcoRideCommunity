@@ -1,13 +1,14 @@
 /**
  * Mini émulateur Firebase Authentication (mode démo local uniquement).
  *
- * Il répond aux appels du SDK Firebase (connexion par mot de passe,
- * lecture du compte, rafraîchissement du token) pour les comptes de
- * démonstration de sql/seed.sql. Les tokens ne sont pas signés : seul
+ * Il répond aux appels du SDK Firebase (inscription, connexion par mot de
+ * passe, lecture du compte, rafraîchissement du token) pour les comptes de
+ * démonstration de sql/seed.sql et ceux créés pendant la démo (en mémoire). Les tokens ne sont pas signés : seul
  * firebase-admin en mode émulateur (FIREBASE_AUTH_EMULATOR_HOST) les accepte.
  * Ce serveur n'écoute que sur 127.0.0.1 : il n'est pas joignable du réseau.
  */
 import http from "node:http";
+import crypto from "node:crypto";
 
 export const DEMO_PASSWORD = "Demo2026!";
 export const DEMO_ACCOUNTS = [
@@ -60,9 +61,24 @@ export function startAuthEmulator({ port, projectId }) {
       } catch { /* corps vide ou invalide */ }
       const url = req.url.split("?")[0];
 
+      if (url.endsWith("accounts:signUp")) {
+        const email = String(body.email ?? "").toLowerCase();
+        if (DEMO_ACCOUNTS.some((a) => a.email === email)) {
+          return send(res, 400, { error: { code: 400, message: "EMAIL_EXISTS" } });
+        }
+        if (String(body.password ?? "").length < 6) {
+          return send(res, 400, { error: { code: 400, message: "WEAK_PASSWORD : Password should be at least 6 characters" } });
+        }
+        const account = { localId: `demo-${crypto.randomUUID()}`, email, password: body.password };
+        DEMO_ACCOUNTS.push(account);
+        return send(res, 200, {
+          kind: "identitytoolkit#SignupNewUserResponse", localId: account.localId, email,
+          idToken: idToken(projectId, account), refreshToken: `rt-${account.localId}`, expiresIn: "3600",
+        });
+      }
       if (url.endsWith("accounts:signInWithPassword")) {
-        const account = DEMO_ACCOUNTS.find((a) => a.email === body.email);
-        if (!account || body.password !== DEMO_PASSWORD) {
+        const account = DEMO_ACCOUNTS.find((a) => a.email === String(body.email ?? "").toLowerCase());
+        if (!account || body.password !== (account.password ?? DEMO_PASSWORD)) {
           return send(res, 400, { error: { code: 400, message: "INVALID_LOGIN_CREDENTIALS" } });
         }
         return send(res, 200, {
@@ -91,7 +107,6 @@ export function startAuthEmulator({ port, projectId }) {
           expires_in: "3600", token_type: "Bearer", user_id: account.localId, project_id: projectId,
         });
       }
-      // L'inscription n'est pas gérée en mode démo : on utilise les comptes existants
       send(res, 400, { error: { code: 400, message: "OPERATION_NOT_ALLOWED" } });
     });
   });

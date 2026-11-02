@@ -15,6 +15,10 @@ import { NotificationCenter } from "@/components/notifications/notification-cent
 export function Navbar() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [location] = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Le menu mobile se referme après chaque changement de page
+  useEffect(() => setMenuOpen(false), [location]);
 
   useEffect(() => {
     const unsubscribe = authService.onAuthStateChanged((user) => {
@@ -126,7 +130,14 @@ export function Navbar() {
             )}
             
             {/* Mobile Menu Toggle */}
-            <button className="md:hidden p-2 text-slate-700">
+            <button
+              type="button"
+              className="md:hidden p-2 text-slate-700"
+              aria-label={menuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
               <div className="w-6 h-6 flex flex-col justify-center items-center">
                 <span className="w-4 h-0.5 bg-current mb-1"></span>
                 <span className="w-4 h-0.5 bg-current mb-1"></span>
@@ -136,6 +147,34 @@ export function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* Menu mobile : liens de navigation et de compte */}
+      {menuOpen && (
+        <nav id="mobile-menu" aria-label="Menu principal" className="md:hidden border-t border-slate-200 bg-white px-4 py-3">
+          <ul className="flex flex-col gap-1">
+            <li><Link href="/search" className="block rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">Rechercher un trajet</Link></li>
+            {user ? (
+              <>
+                <li><Link href="/dashboard" className="block rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">Mon espace</Link></li>
+                {user.profile?.role === "admin" && (
+                  <li><Link href="/admin" className="block rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">Administration</Link></li>
+                )}
+                <li>
+                  <button type="button" onClick={handleLogout} className="w-full text-left rounded-lg px-3 py-2 font-medium text-red-700 hover:bg-slate-50">
+                    Se déconnecter
+                  </button>
+                </li>
+              </>
+            ) : (
+              <>
+                <li><Link href="/login" className="block rounded-lg px-3 py-2 font-medium text-slate-700 hover:bg-slate-50">Se connecter</Link></li>
+                <li><Link href="/register" className="block rounded-lg px-3 py-2 font-medium text-eco-green hover:bg-slate-50">S'inscrire</Link></li>
+                <li><Link href="/employee/login" className="block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">Espace employé</Link></li>
+              </>
+            )}
+          </ul>
+        </nav>
+      )}
     </header>
   );
 }

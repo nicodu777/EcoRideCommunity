@@ -159,11 +159,11 @@ export default function AdminDashboard() {
               <Card key={u.id}>
                 <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium text-slate-900 flex items-center gap-2">
+                    <div className="font-medium text-slate-900 flex items-center gap-2">
                       {u.firstName} {u.lastName}
                       <Badge variant="outline">{ROLE_LABELS[u.role]}</Badge>
                       {u.isSuspended && <Badge className="bg-red-100 text-red-800">Suspendu</Badge>}
-                    </p>
+                    </div>
                     <p className="text-sm text-slate-600">
                       {u.email} · {formatCredits(u.credits)} · inscrit le {format(new Date(u.createdAt), "dd MMM yyyy", { locale: fr })}
                     </p>
@@ -202,10 +202,10 @@ export default function AdminDashboard() {
               <Card key={e.id}>
                 <CardContent className="p-5 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium text-slate-900 flex items-center gap-2">
+                    <div className="font-medium text-slate-900 flex items-center gap-2">
                       {e.firstName} {e.lastName}
                       {!e.isActive && <Badge className="bg-red-100 text-red-800">Désactivé</Badge>}
-                    </p>
+                    </div>
                     <p className="text-sm text-slate-600">{e.email} · {e.position}</p>
                   </div>
                   {e.isActive && (
