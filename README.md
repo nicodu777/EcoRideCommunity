@@ -5,7 +5,6 @@
 Application web de covoiturage réalisée pour l'ECF du **titre professionnel Développeur Web et Web Mobile** (Studi).
 EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et met en avant les véhicules électriques.
 
-- **Application en ligne** : https://eco-ride-community-NicolasTaverne.replit.app
 - **Gestion de projet (Trello)** : lien communiqué dans la copie à rendre
 
 ---
@@ -52,7 +51,7 @@ EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et 
 | BDD NoSQL | **MongoDB 7** | Préférences des chauffeurs (structure libre) et journal des actions admin |
 | Authentification | Firebase Authentication + vérification serveur (`firebase-admin`) ; JWT pour les employés | Mots de passe gérés par Google, tokens signés |
 | Tests | Vitest, Supertest, PGlite (PostgreSQL en mémoire) | Tests sur le vrai SQL sans installer de serveur |
-| Déploiement | Replit (prod), Docker Compose (local) | |
+| Déploiement | Docker Compose (application, PostgreSQL, MongoDB) | |
 
 ## Architecture
 
