@@ -13,6 +13,8 @@ import { createChatRoutes } from "./chatRoutes";
 
 export function createApiRouter(container: Container): Router {
   const api = Router();
+  // Utilisée par l'hébergeur pour vérifier que l'application répond
+  api.get("/health", (_req, res) => res.json({ status: "ok" }));
   api.use(createUserRoutes(container));
   api.use(createVehicleRoutes(container));
   api.use(createTripRoutes(container));
