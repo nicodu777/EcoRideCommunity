@@ -12,7 +12,7 @@
  * ====================================================================
  */
 import type {
-  User, Trip, InsertTrip, SearchTrip, SearchTripsResponse, TripWithDriver, TripDetails,
+  User, Trip, InsertTrip, SearchTrip, SearchTripsResponse, TripWithDriver, TripDetails, PublicStats,
 } from "@shared/schema";
 import type { TripRepository } from "../repositories/TripRepository";
 import type { VehicleRepository } from "../repositories/VehicleRepository";
@@ -39,6 +39,11 @@ export class TripService {
 
   async listUpcoming(): Promise<TripWithDriver[]> {
     return this.trips.listUpcoming();
+  }
+
+  /** Chiffres de l'accueil (trajets à venir, inscrits, CO₂ évité). */
+  publicStats(): Promise<PublicStats> {
+    return this.trips.publicStats();
   }
 
   /** US3 + US4 : recherche avec filtres, et date la plus proche si aucun résultat. */

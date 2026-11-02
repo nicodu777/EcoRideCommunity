@@ -6,7 +6,8 @@
  * pour renvoyer en une seule requête le trajet, son chauffeur et son véhicule.
  */
 import { and, eq, gt, gte, ilike, lte, sql, asc, desc, type SQL } from "drizzle-orm";
-import { trips, users, vehicles, type Trip, type TripWithDriver, type SearchTrip } from "@shared/schema";
+import { trips, users, vehicles, bookings, type Trip, type TripWithDriver, type SearchTrip, type PublicStats } from "@shared/schema";
+import { AVERAGE_SPEED_KMH, CO2_SAVED_KG_PER_KM } from "@shared/co2";
 import type { Database, Executor } from "../db/postgres";
 
 /** Colonnes sélectionnées pour construire un TripWithDriver. */
@@ -153,5 +154,29 @@ export class TripRepository {
       .where(sql`${trips.status} <> 'cancelled'`)
       .groupBy(day)
       .orderBy(day);
+  }
+
+  /**
+   * Chiffres affichés sur l'accueil, calculés sur les vraies données :
+   * trajets à venir, utilisateurs inscrits et CO₂ évité par les trajets validés
+   * (même estimation que shared/co2.ts, faite directement en SQL).
+   */
+  async publicStats(): Promise<PublicStats> {
+    const hours = sql`extract(epoch from (${trips.arrivalTime} - ${trips.departureTime})) / 3600`;
+    const [[upcoming], [registered], [co2]] = await Promise.all([
+      this.db.select({ value: sql<number>`count(*)::int` }).from(trips)
+        .where(and(eq(trips.status, "pending"), gt(trips.availableSeats, 0), gt(trips.departureTime, new Date()))),
+      this.db.select({ value: sql<number>`count(*)::int` }).from(users).where(sql`${users.role} <> 'admin'`),
+      this.db
+        .select({ value: sql<string>`coalesce(sum(${hours} * ${bookings.seatsBooked}), 0)` })
+        .from(bookings)
+        .innerJoin(trips, eq(trips.id, bookings.tripId))
+        .where(eq(bookings.status, "validated")),
+    ]);
+    return {
+      upcomingTrips: upcoming.value,
+      users: registered.value,
+      co2SavedKg: Math.round(Number(co2.value) * AVERAGE_SPEED_KMH * CO2_SAVED_KG_PER_KM),
+    };
   }
 }

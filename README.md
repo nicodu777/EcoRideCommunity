@@ -152,7 +152,7 @@ Chaque fusion dans `main` est redéployée automatiquement, une fois la CI au ve
 ## Tests
 
 ```bash
-npm test        # 34 tests : règles métier (crédits, annulations, litiges...) et sécurité de l'API
+npm test        # 35 tests : règles métier (crédits, annulations, litiges...) et sécurité de l'API
 npm run check   # vérification TypeScript de tout le projet
 ```
 

@@ -113,4 +113,12 @@ describe("Validation des entrées", () => {
     const res = await request(app).post("/api/trips/search").send({ departure: "Paris", destination: "Lyon" }).expect(200);
     expect(res.body.trips.length).toBe(2);
   });
+
+  test("chiffres de l'accueil calculés sur la base : CO₂ du trajet validé Lille → Paris (2 h 30) = 24 kg", async () => {
+    const res = await request(app).get("/api/stats").expect(200);
+    expect(res.body.co2SavedKg).toBe(24);            // 2,5 h × 80 km/h × 0,12 kg/km × 1 place
+    expect(res.body.upcomingTrips).toBeGreaterThan(0);
+    expect(res.body.users).toBeGreaterThan(0);
+    expect(Object.keys(res.body).sort()).toEqual(["co2SavedKg", "upcomingTrips", "users"]); // aucune donnée personnelle
+  });
 });
