@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
 
 // Validate Firebase configuration
 const requiredEnvVars = {
@@ -28,4 +28,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// En développement uniquement : émulateur Firebase Auth local (comptes de démo)
+const emulatorHost = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_HOST;
+if (import.meta.env.DEV && emulatorHost) {
+  connectAuthEmulator(auth, `http://${emulatorHost}`, { disableWarnings: true });
+}
+
 export default app;
