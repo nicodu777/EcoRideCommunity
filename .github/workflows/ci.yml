@@ -1,0 +1,34 @@
+# Intégration continue : à chaque push et à chaque pull request,
+# on vérifie les types, on lance les tests et on construit l'application.
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  qualite:
+    name: Types, tests et build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Installation des dépendances
+        run: npm ci
+
+      - name: Vérification TypeScript
+        run: npm run check
+
+      # Les tests utilisent PGlite (PostgreSQL en mémoire) : pas de base à installer
+      - name: Tests automatisés
+        run: npm test
+
+      - name: Build de production
+        run: npm run build

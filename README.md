@@ -1,5 +1,7 @@
 # EcoRide 🌱 : covoiturage écoresponsable
 
+[![CI](https://github.com/nicodu777/EcoRideCommunity/actions/workflows/ci.yml/badge.svg)](https://github.com/nicodu777/EcoRideCommunity/actions/workflows/ci.yml)
+
 Application web de covoiturage réalisée pour l'ECF du **titre professionnel Développeur Web et Web Mobile** (Studi).
 EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et met en avant les véhicules électriques.
 
@@ -133,6 +135,8 @@ npm run check   # vérification TypeScript de tout le projet
 ```
 
 Les tests utilisent PGlite, un vrai PostgreSQL compilé en WebAssembly, initialisé avec `sql/schema.sql` et `sql/seed.sql`.
+
+L'intégration continue (GitHub Actions, `.github/workflows/ci.yml`) relance la vérification TypeScript, les tests et le build à chaque push et à chaque pull request sur `main` et `develop`.
 
 ## Sécurité
 
