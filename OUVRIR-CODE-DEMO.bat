@@ -16,7 +16,7 @@ if errorlevel 1 (
 )
 
 call code . ^
-  -g client/src/components/trip/trip-card.tsx:16 ^
+  -g client/src/components/trip/trip-card.tsx:17 ^
   -g client/src/components/trip/booking-confirmation-modal.tsx:149 ^
   -g client/src/lib/queryClient.ts:36 ^
   -g sql/schema.sql:83 ^
@@ -25,5 +25,5 @@ call code . ^
   -g server/services/BookingService.ts:46 ^
   -g server/middlewares/auth.ts:80 ^
   -g shared/schema.ts:247 ^
-  -g server/security/TokenVerifier.ts:35 ^
+  -g server/security/TokenVerifier.ts:45 ^
   -g tests/booking.test.ts:38

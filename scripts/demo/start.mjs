@@ -7,8 +7,11 @@
  * 3. démarre l'application sur http://localhost:5000 et ouvre le navigateur.
  * Fermer la fenêtre (ou Ctrl+C) arrête tout.
  *
+ * Mode réel (`--reel`) : même base locale, mais connexion avec le vrai
+ * Firebase du projet (clés lues dans .env, Internet nécessaire).
+ *
  * Prérequis : Node.js 20+ et PostgreSQL installé (C:\Program Files\PostgreSQL).
- * Lancement : double-clic sur DEMARRER-ECORIDE.bat, ou `npm run demo`.
+ * Lancement : DEMARRER-ECORIDE.bat / `npm run demo`, ou DEMARRER-ECORIDE-REEL.bat / `npm run demo:reel`.
  * ====================================================================
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -23,6 +26,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const DEMO_DIR = path.join(ROOT, ".demo");
 const PG_DATA = path.join(DEMO_DIR, "pgdata");
 const PG_PORT = 5433, AUTH_PORT = 9099, APP_PORT = 5000;
+const REAL = process.argv.includes("--reel");
 const PROJECT_ID = "demo-ecoride";
 const APP_URL = `http://localhost:${APP_PORT}`;
 
@@ -30,6 +34,21 @@ const step = (msg) => console.log(`\n▶ ${msg}`);
 function fail(msg) {
   console.error(`\n✖ ${msg}\n`);
   process.exit(1);
+}
+
+/** Lit les variables Firebase du fichier .env (mode réel). */
+function readFirebaseEnv() {
+  const file = path.join(ROOT, ".env");
+  if (!fs.existsSync(file)) fail("Fichier .env introuvable : le mode réel a besoin des clés Firebase (voir .env.example).");
+  const vars = {};
+  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*((?:VITE_)?FIREBASE_[A-Z_]+)\s*=\s*(.*)$/);
+    if (m) vars[m[1]] = m[2].trim();
+  }
+  for (const key of ["VITE_FIREBASE_API_KEY", "VITE_FIREBASE_PROJECT_ID", "VITE_FIREBASE_APP_ID", "FIREBASE_PROJECT_ID"]) {
+    if (!vars[key]) fail(`Variable ${key} absente du fichier .env.`);
+  }
+  return vars;
 }
 
 /** Cherche les outils PostgreSQL (variable PG_BIN, sinon C:\Program Files\PostgreSQL\<version>\bin). */
@@ -68,9 +87,10 @@ async function waitFor(url, timeoutMs) {
 
 // ---------------------------------------------------------------- vérifications
 console.log("==============================================");
-console.log("  EcoRide — mode démo local");
+console.log(REAL ? "  EcoRide — mode réel (vrai Firebase, base locale)" : "  EcoRide — mode démo local");
 console.log("==============================================");
 
+const firebaseEnv = REAL ? readFirebaseEnv() : null;
 const pgBin = findPgBin();
 if (!pgBin) fail("PostgreSQL est introuvable. Installez-le (postgresql.org) ou indiquez son dossier bin dans PG_BIN.");
 const pg = (tool) => path.join(pgBin, `${tool}.exe`);
@@ -85,7 +105,9 @@ if (!fs.existsSync(path.join(ROOT, "node_modules"))) {
 if (fs.existsSync(path.join(PG_DATA, "postmaster.pid"))) {
   spawnSync(pg("pg_ctl"), ["-D", PG_DATA, "stop", "-m", "fast"], { stdio: "ignore" });
 }
-for (const [port, name] of [[PG_PORT, "PostgreSQL de démo"], [AUTH_PORT, "émulateur d'authentification"], [APP_PORT, "application"]]) {
+const ports = [[PG_PORT, "PostgreSQL de démo"], [APP_PORT, "application"]];
+if (!REAL) ports.push([AUTH_PORT, "émulateur d'authentification"]);
+for (const [port, name] of ports) {
   if (!(await portFree(port))) fail(`Le port ${port} (${name}) est déjà utilisé. Fermez l'autre programme ou l'ancienne fenêtre de démo.`);
 }
 
@@ -118,12 +140,25 @@ for (const file of ["sql/schema.sql", "sql/seed.sql", "scripts/demo/demo-data.sq
 }
 
 // ---------------------------------------------------------------- authentification
-step("Démarrage de l'émulateur d'authentification...");
-auth = await startAuthEmulator({ port: AUTH_PORT, projectId: PROJECT_ID });
+if (!REAL) {
+  step("Démarrage de l'émulateur d'authentification...");
+  auth = await startAuthEmulator({ port: AUTH_PORT, projectId: PROJECT_ID });
+}
 
 // ---------------------------------------------------------------- application
 step("Démarrage de l'application (environ 15 secondes)...");
 const authHost = `127.0.0.1:${AUTH_PORT}`;
+// Mode réel : clés du .env ; mode démo : émulateur local et projet fictif
+const firebase = REAL
+  ? { ...firebaseEnv, FIREBASE_AUTH_EMULATOR_HOST: "", VITE_FIREBASE_AUTH_EMULATOR_HOST: "" }
+  : {
+      FIREBASE_PROJECT_ID: PROJECT_ID,
+      FIREBASE_AUTH_EMULATOR_HOST: authHost,
+      VITE_FIREBASE_AUTH_EMULATOR_HOST: authHost,
+      VITE_FIREBASE_API_KEY: "demo-api-key",
+      VITE_FIREBASE_PROJECT_ID: PROJECT_ID,
+      VITE_FIREBASE_APP_ID: "demo-app",
+    };
 app = spawn(process.execPath, [path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"), "server/index.ts"], {
   cwd: ROOT,
   stdio: "inherit",
@@ -134,12 +169,7 @@ app = spawn(process.execPath, [path.join(ROOT, "node_modules", "tsx", "dist", "c
     DATABASE_URL: `postgres://ecoride@127.0.0.1:${PG_PORT}/ecoride`,
     MONGO_URL: "",
     JWT_SECRET: crypto.randomBytes(48).toString("hex"),
-    FIREBASE_PROJECT_ID: PROJECT_ID,
-    FIREBASE_AUTH_EMULATOR_HOST: authHost,
-    VITE_FIREBASE_AUTH_EMULATOR_HOST: authHost,
-    VITE_FIREBASE_API_KEY: "demo-api-key",
-    VITE_FIREBASE_PROJECT_ID: PROJECT_ID,
-    VITE_FIREBASE_APP_ID: "demo-app",
+    ...firebase,
   },
 });
 app.on("exit", (code) => {
@@ -155,17 +185,23 @@ if (!(await waitFor(`${APP_URL}/api/health`, 90_000))) {
   fail("L'application ne répond pas après 90 secondes.");
 }
 
-console.log(`
-==============================================
-  EcoRide est prêt : ${APP_URL}
-==============================================
-  Comptes de démonstration (mot de passe : ${DEMO_PASSWORD})
+const accounts = REAL ? `  Connexion avec les VRAIS comptes Firebase du projet ${firebaseEnv.FIREBASE_PROJECT_ID} :
+    Administrateur : admin@ecoride.com (votre mot de passe Firebase) → /login
+    Nouveaux comptes : /register (20 crédits offerts)
+  Employé (page séparée) : employe@ecoride.com / Employe2026!  → /employee/login
+  Les trajets de démonstration (Marie, Pierre...) sont visibles et réservables.` : `  Comptes de démonstration (mot de passe : ${DEMO_PASSWORD})
     Administrateur : admin@ecoride.com          → /login puis menu « Administration »
     Chauffeur      : marie.dupont@email.com     → /login
     Chauffeur+pass.: pierre.martin@email.com    → /login
     Passagère      : sophie.bernard@email.com   → /login (20 crédits)
     Passager       : lucas.petit@email.com      → /login (12 crédits)
-  Employé (page séparée) : employe@ecoride.com / Employe2026!  → /employee/login
+  Employé (page séparée) : employe@ecoride.com / Employe2026!  → /employee/login`;
+
+console.log(`
+==============================================
+  EcoRide est prêt : ${APP_URL}
+==============================================
+${accounts}
 
   La base est recréée à chaque lancement (trajets à venir, litige, avis à modérer).
   Pour arrêter : fermez cette fenêtre ou appuyez sur Ctrl+C.
