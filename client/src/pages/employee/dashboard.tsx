@@ -17,7 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { employeeRequest, queryClient, ApiError, EMPLOYEE_TOKEN_KEY } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, LogOut, Star, AlertTriangle } from "lucide-react";
+import { Shield, LogOut, Star, AlertTriangle, CheckCircle } from "lucide-react";
+
+const PERMISSION_LABELS: Record<string, string> = {
+  ratings: "Modération des avis",
+  trip_issues: "Litiges entre passagers et chauffeurs",
+};
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -107,6 +112,33 @@ export default function EmployeeDashboard() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-8">
+        <Card className="mb-6">
+          <CardHeader><CardTitle>Mes permissions</CardTitle></CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {employee.permissions.map((permission) => (
+              <Badge key={permission} variant="secondary">{PERMISSION_LABELS[permission] ?? permission}</Badge>
+            ))}
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          {[
+            { icon: Star, color: "bg-yellow-100 text-yellow-700", label: "Avis en attente", value: ratings.length, show: can("ratings") },
+            { icon: AlertTriangle, color: "bg-red-100 text-red-700", label: "Litiges à traiter", value: pendingIssues.length, show: can("trip_issues") },
+            { icon: CheckCircle, color: "bg-green-100 text-green-700", label: "Litiges résolus", value: issues.length - pendingIssues.length, show: can("trip_issues") },
+          ].filter((s) => s.show).map(({ icon: Icon, color, label, value }) => (
+            <Card key={label}>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`p-3 rounded-lg ${color}`}><Icon className="w-6 h-6" aria-hidden="true" /></div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{value}</p>
+                  <p className="text-sm text-gray-600">{label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
         <Tabs defaultValue={can("ratings") ? "ratings" : "issues"} className="space-y-6">
           <TabsList>
             {can("ratings") && <TabsTrigger value="ratings">Avis à modérer ({ratings.length})</TabsTrigger>}

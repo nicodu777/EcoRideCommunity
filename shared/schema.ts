@@ -376,6 +376,13 @@ export type SearchTripsResponse = {
   suggestedDate: string | null;
 };
 
+/** Chiffres publics de l'accueil, calculés à partir de la base. */
+export type PublicStats = {
+  upcomingTrips: number;
+  users: number;
+  co2SavedKg: number;
+};
+
 /** Détail d'un trajet (US5) : avis publiés et préférences du chauffeur. */
 export type TripDetails = TripWithDriver & {
   reviews: Pick<Rating, "id" | "rating" | "comment" | "createdAt">[];

@@ -1,4 +1,5 @@
 import { TripWithDriver } from "@shared/schema";
+import { estimateCo2SavedKg } from "@shared/co2";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
@@ -14,6 +15,8 @@ interface TripCardProps {
 }
 
 export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps) {
+  const co2Saved = estimateCo2SavedKg(trip.departureTime, trip.arrivalTime);
+
   const getDriverInitials = () => {
     return `${trip.driver.firstName[0]}${trip.driver.lastName[0]}`.toUpperCase();
   };
@@ -109,6 +112,13 @@ export function TripCard({ trip, onBook, showBookButton = true }: TripCardProps)
             </span>
           )}
         </div>
+
+        {co2Saved > 0 && (
+          <p className="mb-4 flex items-center gap-1 text-xs text-green-700" title="Estimation : durée × 80 km/h × 120 g de CO₂ évités par km">
+            <Leaf size={12} aria-hidden="true" />
+            ≈ {co2Saved} kg de CO₂ évités par passager
+          </p>
+        )}
 
         <div className="flex gap-2">
           {/* US5 : page de détail (véhicule, préférences et avis du chauffeur) */}

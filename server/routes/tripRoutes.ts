@@ -17,6 +17,11 @@ export function createTripRoutes({ services, auth }: Container): Router {
     res.json(await services.trips.listUpcoming());
   }));
 
+  // Chiffres publics de l'accueil (aucune donnée personnelle)
+  router.get("/stats", asyncHandler(async (_req, res) => {
+    res.json(await services.trips.publicStats());
+  }));
+
   router.post("/trips/search", asyncHandler(async (req, res) => {
     const params = searchTripSchema.parse(req.body);
     res.json(await services.trips.search(params));

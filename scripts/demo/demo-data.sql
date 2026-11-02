@@ -23,6 +23,14 @@ VALUES (5, 5, 3, 4, 'Trajet agréable, voiture propre. Un peu de retard au dépa
 SELECT setval('trips_id_seq',    (SELECT MAX(id) FROM trips));
 SELECT setval('bookings_id_seq', (SELECT MAX(id) FROM bookings));
 
+-- Trajets à venir supplémentaires (accueil et recherche plus fournis)
+INSERT INTO trips (driver_id, vehicle_id, departure, destination, departure_time, arrival_time,
+                   available_seats, total_seats, price_per_seat, description, status) VALUES
+  (2, 1, 'Lyon',     'Paris',     NOW() + INTERVAL '4 days 2 hours', NOW() + INTERVAL '4 days 6 hours 30 minutes', 3, 3, 24.00, 'Retour vers Paris, coffre disponible.', 'pending'),
+  (3, 2, 'Toulouse', 'Bordeaux',  NOW() + INTERVAL '6 days',         NOW() + INTERVAL '6 days 2 hours 30 minutes', 2, 3, 14.00, NULL, 'pending'),
+  (2, 1, 'Paris',    'Lille',     NOW() + INTERVAL '8 days 1 hour',  NOW() + INTERVAL '8 days 3 hours 30 minutes', 3, 3, 13.00, 'Trajet direct par l''A1.', 'pending'),
+  (3, 3, 'Marseille','Nice',      NOW() + INTERVAL '9 days',         NOW() + INTERVAL '9 days 2 hours 15 minutes', 4, 4, 11.00, NULL, 'pending');
+
 -- Historique des deux dernières semaines (covoiturages et crédits par jour)
 DO $$
 DECLARE d INT; t INT; b INT;

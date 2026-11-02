@@ -5,6 +5,7 @@
  * - Mes trajets (chauffeur) : publier, démarrer, arrivée, annuler ;
  * - Mes réservations (passager) : historique, annulation, validation, avis ;
  * - Véhicules & préférences (chauffeur) ;
+ * - Mon impact : bilan (trajets, CO₂ évité) et badges ;
  * - Profil : rôle (passager / chauffeur / les deux) et solde de crédits.
  */
 import { useState, useEffect } from "react";
@@ -21,6 +22,7 @@ import { DriverTripItem } from "@/components/dashboard/driver-trip-item";
 import { BookingItem } from "@/components/dashboard/booking-item";
 import { VehicleManager } from "@/components/dashboard/vehicle-manager";
 import { PreferencesForm } from "@/components/dashboard/preferences-form";
+import { ImpactPanel } from "@/components/dashboard/impact-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +32,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ROLE_LABELS, formatCredits } from "@/lib/labels";
 import { Plus, Car, Calendar, Star, Coins, LogOut, Shield } from "lucide-react";
 
-const TABS = ["trips", "bookings", "vehicles", "profile"] as const;
+const TABS = ["trips", "bookings", "vehicles", "impact", "profile"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function Dashboard() {
@@ -117,10 +119,11 @@ export default function Dashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(t) => { setActiveTab(t as Tab); navigate(`/dashboard?tab=${t}`); }} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto">
             <TabsTrigger value="trips">Mes trajets</TabsTrigger>
             <TabsTrigger value="bookings">Mes réservations</TabsTrigger>
             <TabsTrigger value="vehicles">Véhicules</TabsTrigger>
+            <TabsTrigger value="impact">Mon impact</TabsTrigger>
             <TabsTrigger value="profile">Profil</TabsTrigger>
           </TabsList>
 
@@ -171,6 +174,10 @@ export default function Dashboard() {
                 Les véhicules et préférences concernent les chauffeurs. Changez votre rôle dans l'onglet Profil.
               </CardContent></Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="impact">
+            <ImpactPanel bookings={myBookings} driverTrips={myTrips} />
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6 max-w-2xl">
