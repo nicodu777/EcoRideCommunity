@@ -1,159 +1,47 @@
 /**
- * userRoutes - Définition des routes API pour les utilisateurs
- * 
- * Ce fichier contient uniquement la définition des endpoints REST.
- * Toute la logique métier est déléguée au UserService.
- * 
- * Principe : Les routes sont "fines" - elles ne font que :
- * 1. Récupérer les paramètres de la requête
- * 2. Appeler le service approprié
- * 3. Formater et renvoyer la réponse
+ * Routes /api/users et /api/notifications - Compte de l'utilisateur connecté.
+ *
+ * Les routes sont « fines » : elles valident l'entrée (Zod), appellent le
+ * service et renvoient la réponse. Aucune logique métier, aucun SQL ici.
+ * Il n'y a plus de route /api/users/:id : chacun n'accède qu'à SON profil
+ * (/me), identifié par le token.
  */
+import { Router } from "express";
+import { registerUserSchema, updateProfileSchema } from "@shared/schema";
+import type { Container } from "../container";
+import { asyncHandler, parseId } from "../middlewares/errorHandler";
+import { toOwnProfile } from "../services/UserService";
 
-import { Router, Request, Response } from "express";
-import { userService } from "../services/UserService";
-import { insertUserSchema } from "@shared/schema";
-import { z } from "zod";
+export function createUserRoutes({ services, repositories, auth }: Container): Router {
+  const router = Router();
 
-// Création du routeur Express pour les utilisateurs
-const router = Router();
+  /** POST /api/users - Création du profil après l'inscription Firebase (US7). */
+  router.post("/users", auth.verifyIdentity, asyncHandler(async (req, res) => {
+    const data = registerUserSchema.parse(req.body);
+    const profile = await services.users.register(req.identity!, data);
+    res.status(201).json(profile);
+  }));
 
-/**
- * POST /api/users
- * Crée un nouvel utilisateur
- */
-router.post("/", async (req: Request, res: Response) => {
-  try {
-    // Validation des données avec Zod
-    const userData = insertUserSchema.parse(req.body);
-    
-    // Appel du service métier
-    const user = await userService.createUser(userData);
-    
-    res.status(201).json(user);
-  } catch (error) {
-    // Gestion des erreurs métier
-    if (error instanceof Error && error.message === "USER_ALREADY_EXISTS") {
-      return res.status(409).json({ message: "L'utilisateur existe déjà" });
-    }
-    
-    // Erreur de validation Zod
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ 
-        message: "Données utilisateur invalides", 
-        errors: error.errors 
-      });
-    }
-    
-    console.error("Erreur création utilisateur:", error);
-    res.status(500).json({ message: "Erreur serveur interne" });
-  }
-});
+  /** GET /api/users/me - Profil de l'utilisateur connecté. */
+  router.get("/users/me", auth.requireAuth, (req, res) => {
+    res.json(toOwnProfile(req.user!));
+  });
 
-/**
- * GET /api/users/firebase/:uid
- * Récupère un utilisateur par son UID Firebase
- * NE crée PAS automatiquement l'utilisateur (évite conflit avec POST /api/users)
- */
-router.get("/firebase/:uid", async (req: Request, res: Response) => {
-  try {
-    const { uid } = req.params;
-    
-    // Récupération via le service (qui gère la logique admin)
-    const user = await userService.getUserByFirebaseUid(uid);
-    
-    // Si l'utilisateur n'existe pas, retourner 404
-    // Le frontend doit appeler POST /api/users pour créer l'utilisateur
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    console.error("Erreur récupération utilisateur Firebase:", error);
-    res.status(500).json({ message: "Erreur serveur interne" });
-  }
-});
+  /** PATCH /api/users/me - Modifier son profil (US8 : passager, chauffeur ou les deux). */
+  router.patch("/users/me", auth.requireAuth, asyncHandler(async (req, res) => {
+    const data = updateProfileSchema.parse(req.body);
+    res.json(await services.users.updateProfile(req.user!, data));
+  }));
 
-/**
- * GET /api/users/:id
- * Récupère un utilisateur par son ID
- */
-router.get("/:id", async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "ID invalide" });
-    }
-    
-    const user = await userService.getUserById(id);
-    
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    console.error("Erreur récupération utilisateur:", error);
-    res.status(500).json({ message: "Erreur serveur interne" });
-  }
-});
+  /** GET /api/notifications - Notifications de l'utilisateur connecté. */
+  router.get("/notifications", auth.requireAuth, asyncHandler(async (req, res) => {
+    res.json(await repositories.notifications.findByUser(req.user!.id));
+  }));
 
-/**
- * PATCH /api/users/:id/role
- * Met à jour le rôle d'un utilisateur (admin uniquement)
- */
-router.patch("/:id/role", async (req: Request, res: Response) => {
-  try {
-    const userId = parseInt(req.params.id);
-    const { role } = req.body;
-    
-    if (isNaN(userId)) {
-      return res.status(400).json({ message: "ID invalide" });
-    }
-    
-    const user = await userService.changeUserRole(userId, role);
-    
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    // Gestion des erreurs métier
-    if (error instanceof Error && error.message === "INVALID_ROLE") {
-      return res.status(400).json({ message: "Rôle invalide" });
-    }
-    
-    console.error("Erreur mise à jour rôle:", error);
-    res.status(500).json({ message: "Erreur serveur interne" });
-  }
-});
+  router.patch("/notifications/:id/read", auth.requireAuth, asyncHandler(async (req, res) => {
+    await repositories.notifications.markRead(parseId(req.params.id), req.user!.id);
+    res.status(204).end();
+  }));
 
-/**
- * PUT /api/users/:id
- * Met à jour les informations d'un utilisateur
- */
-router.put("/:id", async (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id);
-    
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "ID invalide" });
-    }
-    
-    const user = await userService.updateUser(id, req.body);
-    
-    if (!user) {
-      return res.status(404).json({ message: "Utilisateur non trouvé" });
-    }
-    
-    res.json(user);
-  } catch (error) {
-    console.error("Erreur mise à jour utilisateur:", error);
-    res.status(500).json({ message: "Erreur serveur interne" });
-  }
-});
-
-export default router;
+  return router;
+}

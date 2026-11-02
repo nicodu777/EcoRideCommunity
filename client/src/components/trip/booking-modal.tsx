@@ -12,16 +12,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, X, Leaf } from "lucide-react";
+import { Star, Leaf } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { BookingConfirmationModal } from "./booking-confirmation-modal";
+import { formatCredits } from "@/lib/labels";
 
 interface BookingModalProps {
   trip: TripWithDriver | null;
   open: boolean;
   onClose: () => void;
-  onConfirm: (tripId: number, seatsBooked: number, message: string, totalPrice: number) => void;
+  /** Le prix n'est pas transmis : le serveur le recalcule lui-même. */
+  onConfirm: (tripId: number, seatsBooked: number, message: string) => void;
   loading?: boolean;
   userCredits?: number;
 }
@@ -51,7 +53,7 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false, 
   };
 
   const handleFinalConfirm = () => {
-    onConfirm(trip.id, seatsBooked, message, totalPrice);
+    onConfirm(trip.id, seatsBooked, message);
     setShowConfirmation(false);
   };
 
@@ -80,14 +82,9 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false, 
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold text-slate-900">
-              Réserver ce trajet
-            </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X size={20} />
-            </Button>
-          </div>
+          <DialogTitle className="text-xl font-bold text-slate-900">
+            Réserver ce trajet
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -151,10 +148,10 @@ export function BookingModal({ trip, open, onClose, onConfirm, loading = false, 
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-eco-green bg-opacity-10 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
             <span className="font-medium text-slate-900">Total à payer</span>
-            <span className="text-xl font-bold text-eco-green">
-              {totalPrice.toFixed(0)}€
+            <span className="text-xl font-bold text-green-700">
+              {formatCredits(totalPrice)}
             </span>
           </div>
 

@@ -1,36 +1,43 @@
 # ====================================================================
-# Dockerfile pour EcoRide (monorepo Node.js)
+# Image Docker d'EcoRide - construction en deux étapes (multi-stage)
 # ====================================================================
-# 
-# Ce fichier permet de conteneuriser l'application EcoRide
-# pour un déploiement facile sur n'importe quel environnement.
-#
-# Construction : docker build -t ecoride .
-# Exécution    : docker run -p 3000:3000 ecoride
+# 1. « build » : installe tout (dépendances de dev comprises) et compile
+#    le front (Vite) et le serveur (esbuild) dans dist/
+# 2. « runtime » : image finale légère avec seulement les dépendances de
+#    production et le dossier dist/, exécutée avec un utilisateur non root
 # ====================================================================
 
-FROM node:20-alpine
-
-# Dossier de travail dans le conteneur
+# ---------- Étape 1 : compilation ----------
+FROM node:22-alpine AS build
 WORKDIR /app
 
-# Copie des fichiers de dépendances
 COPY package*.json ./
+RUN npm ci
 
-# Installation des dépendances
-RUN npm install
-
-# Copie du reste du projet
 COPY . .
 
-# Variables d'environnement de base (adaptables)
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV DATABASE_URL=postgres://ecoride:ecoride@db:5432/ecoride
+# Configuration Firebase du front : intégrée au JavaScript au moment du build
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_APP_ID
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY \
+    VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID \
+    VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
 
-# Exposition des ports (API + éventuel front en dev)
-EXPOSE 3000
-EXPOSE 5173
+RUN npm run build
 
-# Commande de démarrage
-CMD ["npm", "run", "dev"]
+# ---------- Étape 2 : exécution ----------
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production PORT=5000
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=build /app/dist ./dist
+
+# Sécurité : le processus ne tourne pas en root dans le conteneur
+USER node
+
+EXPOSE 5000
+CMD ["node", "dist/index.js"]

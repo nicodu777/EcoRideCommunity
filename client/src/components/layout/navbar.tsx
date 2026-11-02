@@ -78,9 +78,7 @@ export function Navbar() {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {user?.profile && (
-              <NotificationCenter userId={user.profile.id} />
-            )}
+            {user?.profile && <NotificationCenter />}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -102,16 +100,12 @@ export function Navbar() {
                       Mon tableau de bord
                     </Link>
                   </DropdownMenuItem>
-                  {user.profile?.role === 'employee' && (
-                    <DropdownMenuItem onClick={() => window.location.href = '/employee'}>
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Espace employé
-                    </DropdownMenuItem>
-                  )}
                   {user.profile?.role === 'admin' && (
-                    <DropdownMenuItem onClick={() => window.location.href = '/admin'}>
-                      <Calendar className="mr-2 h-4 w-4" />
-                      Administration
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Administration
+                      </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={handleLogout}>

@@ -1,31 +1,26 @@
 /**
- * Index des routes - Agrégateur de tous les routeurs
- * 
- * Ce fichier centralise l'enregistrement de toutes les routes de l'application.
- * Chaque domaine métier a son propre fichier de routes qui est importé ici.
- * 
- * Principe : Un seul point d'entrée pour toutes les routes API
+ * Point d'entrée unique de toutes les routes API (/api/...).
  */
+import { Router } from "express";
+import type { Container } from "../container";
+import { createUserRoutes } from "./userRoutes";
+import { createVehicleRoutes } from "./vehicleRoutes";
+import { createTripRoutes } from "./tripRoutes";
+import { createBookingRoutes } from "./bookingRoutes";
+import { createEmployeeRoutes } from "./employeeRoutes";
+import { createAdminRoutes } from "./adminRoutes";
+import { createChatRoutes } from "./chatRoutes";
 
-import { Express } from "express";
-import userRoutes from "./userRoutes";
-// Import des autres routes (à ajouter au fur et à mesure de la refactorisation)
-// import tripRoutes from "./tripRoutes";
-// import bookingRoutes from "./bookingRoutes";
-// import ratingRoutes from "./ratingRoutes";
-// import employeeRoutes from "./employeeRoutes";
-
-/**
- * Enregistre toutes les routes API sur l'application Express
- * @param app - Instance de l'application Express
- */
-export function registerApiRoutes(app: Express): void {
-  // Routes utilisateurs (refactorisées en POO)
-  app.use("/api/users", userRoutes);
-  
-  // Routes à refactoriser (encore dans l'ancien système)
-  // app.use("/api/trips", tripRoutes);
-  // app.use("/api/bookings", bookingRoutes);
-  // app.use("/api/ratings", ratingRoutes);
-  // app.use("/api/employee", employeeRoutes);
+export function createApiRouter(container: Container): Router {
+  const api = Router();
+  api.use(createUserRoutes(container));
+  api.use(createVehicleRoutes(container));
+  api.use(createTripRoutes(container));
+  api.use(createBookingRoutes(container));
+  api.use(createEmployeeRoutes(container));
+  api.use(createAdminRoutes(container));
+  api.use(createChatRoutes(container));
+  // Toute autre URL /api/... → 404 en JSON (et pas la page HTML du front)
+  api.use((_req, res) => res.status(404).json({ message: "Route API inconnue" }));
+  return api;
 }

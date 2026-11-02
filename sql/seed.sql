@@ -1,125 +1,72 @@
 -- ====================================================================
--- EcoRide - Données de test (seed)
+-- EcoRide - Jeu de données de démonstration
 -- ====================================================================
--- Ce script insère des données de démonstration dans la base de données
--- Il est exécuté automatiquement après la création du schéma
--- ====================================================================
-
--- ====================================================================
--- UTILISATEURS DE TEST
--- ====================================================================
-
--- Compte administrateur principal
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified)
-VALUES ('admin@ecoride.com', 'admin-firebase-uid-001', 'Admin', 'EcoRide', 'admin', 100.00, TRUE)
-ON CONFLICT (email) DO NOTHING;
-
--- Conducteur 1 : Marie avec véhicule électrique
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified, average_rating, total_ratings, bio)
-VALUES ('marie.dupont@email.com', 'driver-firebase-uid-001', 'Marie', 'Dupont', 'driver', 50.00, TRUE, 4.80, 25, 'Conductrice éco-responsable, je roule en Tesla Model 3')
-ON CONFLICT (email) DO NOTHING;
-
--- Conducteur 2 : Pierre avec véhicule hybride
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified, average_rating, total_ratings, bio)
-VALUES ('pierre.martin@email.com', 'driver-firebase-uid-002', 'Pierre', 'Martin', 'driver', 35.00, TRUE, 4.50, 15, 'Conducteur régulier Paris-Lyon, véhicule hybride Toyota')
-ON CONFLICT (email) DO NOTHING;
-
--- Passager 1 : Sophie
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified)
-VALUES ('sophie.bernard@email.com', 'passenger-firebase-uid-001', 'Sophie', 'Bernard', 'passenger', 20.00, TRUE)
-ON CONFLICT (email) DO NOTHING;
-
--- Passager 2 : Lucas
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified)
-VALUES ('lucas.petit@email.com', 'passenger-firebase-uid-002', 'Lucas', 'Petit', 'passenger', 25.00, TRUE)
-ON CONFLICT (email) DO NOTHING;
-
--- Passager 3 : Emma
-INSERT INTO users (email, firebase_uid, first_name, last_name, role, credits, is_verified)
-VALUES ('emma.roux@email.com', 'passenger-firebase-uid-003', 'Emma', 'Roux', 'passenger', 18.00, FALSE)
-ON CONFLICT (email) DO NOTHING;
-
--- ====================================================================
--- TRAJETS DE TEST
+-- Exécuté après sql/schema.sql. Les dates sont calculées à partir de
+-- NOW() pour que les trajets de démonstration soient toujours à venir.
+--
+-- Comptes :
+--  - admin@ecoride.com : se connecte via Firebase. Remplacez le
+--    firebase_uid ci-dessous par l'UID réel du compte (console Firebase
+--    → Authentication) : c'est ainsi que le compte admin est créé
+--    « manuellement », sans passer par l'inscription publique.
+--  - employe@ecoride.com / Employe2026! : espace employé (/employee/login).
+--    Seul le hash bcrypt du mot de passe est stocké.
 -- ====================================================================
 
--- Trajet 1 : Paris → Lyon (électrique, écologique)
-INSERT INTO trips (driver_id, departure, destination, departure_time, arrival_time, available_seats, total_seats, price_per_seat, description, vehicle_type, vehicle_brand, vehicle_model, is_ecological, status)
-SELECT id, 'Paris', 'Lyon', NOW() + INTERVAL '2 days', NOW() + INTERVAL '2 days' + INTERVAL '4 hours', 3, 4, 25.00, 'Trajet confortable en Tesla, WiFi disponible', 'electric', 'Tesla', 'Model 3', TRUE, 'pending'
-FROM users WHERE email = 'marie.dupont@email.com'
+BEGIN;
+
+-- Utilisateurs ---------------------------------------------------------
+INSERT INTO users (id, email, firebase_uid, first_name, last_name, role, credits, average_rating, total_ratings) VALUES
+  (1, 'admin@ecoride.com',        '0Kn4RzhaOmgo1jFG5t97cils05o1', 'Admin',  'EcoRide', 'admin',     0.00, 0,    0),
+  (2, 'marie.dupont@email.com',   'demo-uid-marie',               'Marie',  'Dupont',  'driver',   50.00, 5.00, 1),
+  (3, 'pierre.martin@email.com',  'demo-uid-pierre',              'Pierre', 'Martin',  'both',     35.00, 0,    0),
+  (4, 'sophie.bernard@email.com', 'demo-uid-sophie',              'Sophie', 'Bernard', 'passenger', 20.00, 0,   0),
+  (5, 'lucas.petit@email.com',    'demo-uid-lucas',               'Lucas',  'Petit',   'passenger', 12.00, 0,   0)
+ON CONFLICT (email) DO NOTHING;
+
+-- Véhicules ------------------------------------------------------------
+INSERT INTO vehicles (id, owner_id, plate, first_registration_date, brand, model, color, energy, seats) VALUES
+  (1, 2, 'AB-123-CD', '2022-03-15', 'Tesla',   'Model 3', 'Blanc', 'electric', 4),
+  (2, 3, 'EF-456-GH', '2019-09-01', 'Toyota',  'Corolla', 'Gris',  'hybrid',   4),
+  (3, 3, 'IJ-789-KL', '2016-05-20', 'Peugeot', '308',     'Bleu',  'diesel',   4)
+ON CONFLICT (plate) DO NOTHING;
+
+-- Trajets --------------------------------------------------------------
+INSERT INTO trips (id, driver_id, vehicle_id, departure, destination, departure_time, arrival_time,
+                   available_seats, total_seats, price_per_seat, description, status, completed_at) VALUES
+  (1, 2, 1, 'Paris', 'Lyon',      NOW() + INTERVAL '3 days',               NOW() + INTERVAL '3 days 4 hours 30 minutes', 2, 3, 25.00, 'Départ porte d''Orléans, pause à mi-chemin.', 'pending', NULL),
+  (2, 3, 2, 'Paris', 'Lyon',      NOW() + INTERVAL '5 days',               NOW() + INTERVAL '5 days 5 hours',            3, 3, 18.00, 'Trajet calme, musique douce.',               'pending', NULL),
+  (3, 3, 3, 'Lyon',  'Marseille', NOW() + INTERVAL '7 days',               NOW() + INTERVAL '7 days 3 hours 15 minutes', 4, 4, 15.00, NULL,                                         'pending', NULL),
+  (4, 2, 1, 'Lille', 'Paris',     NOW() - INTERVAL '10 days',              NOW() - INTERVAL '10 days' + INTERVAL '2 hours 30 minutes', 2, 3, 12.00, NULL, 'completed', NOW() - INTERVAL '10 days')
+ON CONFLICT (id) DO NOTHING;
+
+-- Réservations ---------------------------------------------------------
+-- Sophie a réservé 1 place sur le trajet 1 (25 crédits déjà débités)
+-- Lucas a fait le trajet 4 et l'a validé : Marie a reçu 12 - 2 = 10 crédits
+INSERT INTO bookings (id, trip_id, passenger_id, seats_booked, total_price, status) VALUES
+  (1, 1, 4, 1, 25.00, 'confirmed'),
+  (2, 4, 5, 1, 12.00, 'validated')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO platform_earnings (trip_id, booking_id, amount, date) VALUES
+  (4, 2, 2.00, NOW() - INTERVAL '10 days');
+
+-- Employé --------------------------------------------------------------
+INSERT INTO employees (id, email, password, first_name, last_name, position, permissions, created_by) VALUES
+  (1, 'employe@ecoride.com', '$2b$12$JLHs4/BeEd9HaEP3PQh4geWR2RYAqzx8Zn1Iz.ZGRs7sxWLhEDXrS',
+   'Julie', 'Moreau', 'Support Client', ARRAY['ratings', 'trip_issues'], 1)
+ON CONFLICT (email) DO NOTHING;
+
+-- Avis publié (déjà approuvé par l'employé) ----------------------------
+INSERT INTO ratings (trip_id, rater_id, ratee_id, rating, comment, is_approved, reviewed_by, reviewed_at) VALUES
+  (4, 5, 2, 5, 'Conduite très souple, Marie est ponctuelle et sympathique.', TRUE, 1, NOW() - INTERVAL '9 days')
 ON CONFLICT DO NOTHING;
 
--- Trajet 2 : Lyon → Marseille (hybride)
-INSERT INTO trips (driver_id, departure, destination, departure_time, arrival_time, available_seats, total_seats, price_per_seat, description, vehicle_type, vehicle_brand, vehicle_model, is_ecological, status)
-SELECT id, 'Lyon', 'Marseille', NOW() + INTERVAL '3 days', NOW() + INTERVAL '3 days' + INTERVAL '3 hours', 2, 3, 20.00, 'Départ tôt le matin, arrêt possible à Valence', 'hybrid', 'Toyota', 'Prius', FALSE, 'pending'
-FROM users WHERE email = 'pierre.martin@email.com'
-ON CONFLICT DO NOTHING;
+-- Les SERIAL doivent repartir après les id insérés à la main
+SELECT setval('users_id_seq',    (SELECT MAX(id) FROM users));
+SELECT setval('vehicles_id_seq', (SELECT MAX(id) FROM vehicles));
+SELECT setval('trips_id_seq',    (SELECT MAX(id) FROM trips));
+SELECT setval('bookings_id_seq', (SELECT MAX(id) FROM bookings));
+SELECT setval('employees_id_seq',(SELECT MAX(id) FROM employees));
 
--- Trajet 3 : Bordeaux → Toulouse (électrique)
-INSERT INTO trips (driver_id, departure, destination, departure_time, arrival_time, available_seats, total_seats, price_per_seat, description, vehicle_type, vehicle_brand, vehicle_model, is_ecological, status)
-SELECT id, 'Bordeaux', 'Toulouse', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day' + INTERVAL '2 hours', 4, 4, 15.00, 'Trajet direct sans arrêt', 'electric', 'Tesla', 'Model Y', TRUE, 'pending'
-FROM users WHERE email = 'marie.dupont@email.com'
-ON CONFLICT DO NOTHING;
-
--- ====================================================================
--- RÉSERVATIONS DE TEST
--- ====================================================================
-
--- Réservation de Sophie pour le trajet Paris-Lyon
-INSERT INTO bookings (trip_id, passenger_id, seats_booked, total_price, status, message)
-SELECT t.id, u.id, 1, 25.00, 'confirmed', 'Super, j''ai hâte de voyager !'
-FROM trips t, users u 
-WHERE t.departure = 'Paris' AND t.destination = 'Lyon' AND u.email = 'sophie.bernard@email.com'
-ON CONFLICT DO NOTHING;
-
--- Réservation de Lucas pour le trajet Paris-Lyon
-INSERT INTO bookings (trip_id, passenger_id, seats_booked, total_price, status)
-SELECT t.id, u.id, 2, 50.00, 'pending'
-FROM trips t, users u 
-WHERE t.departure = 'Paris' AND t.destination = 'Lyon' AND u.email = 'lucas.petit@email.com'
-ON CONFLICT DO NOTHING;
-
--- ====================================================================
--- ÉVALUATIONS DE TEST
--- ====================================================================
-
--- Note de Sophie pour Marie (ancien trajet)
-INSERT INTO ratings (trip_id, rater_id, ratee_id, rating, comment, is_approved)
-SELECT 
-    (SELECT id FROM trips LIMIT 1),
-    (SELECT id FROM users WHERE email = 'sophie.bernard@email.com'),
-    (SELECT id FROM users WHERE email = 'marie.dupont@email.com'),
-    5, 'Excellente conductrice, très ponctuelle et véhicule très propre !', TRUE
-ON CONFLICT DO NOTHING;
-
--- ====================================================================
--- EMPLOYÉS (pour l'espace admin)
--- ====================================================================
-
--- Modérateur
-INSERT INTO employees (email, password_hash, first_name, last_name, role)
-VALUES ('moderateur@ecoride.com', '$2a$10$dummyhashformoderator', 'Jean', 'Moderateur', 'moderator')
-ON CONFLICT (email) DO NOTHING;
-
--- Administrateur employé
-INSERT INTO employees (email, password_hash, first_name, last_name, role)
-VALUES ('admin.employe@ecoride.com', '$2a$10$dummyhashforadmin', 'Marie', 'Admin', 'admin')
-ON CONFLICT (email) DO NOTHING;
-
--- ====================================================================
--- BADGES DE GAMIFICATION
--- ====================================================================
-
-INSERT INTO badges (name, description, icon, condition, points)
-VALUES 
-    ('Éco-Warrior', 'A effectué 10 trajets en véhicule électrique', 'leaf', '{"trips_electric": 10}', 100),
-    ('Premier Trajet', 'A complété son premier trajet', 'car', '{"trips_completed": 1}', 10),
-    ('Voyageur Régulier', 'A effectué 50 trajets', 'road', '{"trips_completed": 50}', 250),
-    ('Super Conducteur', 'Note moyenne de 4.5+ avec 20+ évaluations', 'star', '{"rating_min": 4.5, "ratings_count": 20}', 200),
-    ('Ami de la Planète', 'A économisé 100kg de CO2', 'globe', '{"co2_saved": 100}', 150)
-ON CONFLICT DO NOTHING;
-
--- ====================================================================
--- MESSAGE DE CONFIRMATION
--- ====================================================================
--- Les données de test ont été insérées avec succès !
+COMMIT;

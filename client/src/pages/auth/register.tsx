@@ -33,6 +33,17 @@ export default function Register() {
       return;
     }
 
+    // US7 : mot de passe sécurisé (8 caractères, majuscule, minuscule, chiffre, caractère spécial)
+    const strongPassword = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!strongPassword.test(password)) {
+      toast({
+        title: "Mot de passe trop faible",
+        description: "8 caractères minimum, avec une majuscule, une minuscule, un chiffre et un caractère spécial.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!role) {
       toast({
         title: "Erreur",
@@ -185,7 +196,7 @@ export default function Register() {
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 focus:ring-2 focus:ring-eco-green focus:border-eco-green"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             </div>
@@ -204,7 +215,7 @@ export default function Register() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pl-10 focus:ring-2 focus:ring-eco-green focus:border-eco-green"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
             </div>

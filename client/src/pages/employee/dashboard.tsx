@@ -1,363 +1,182 @@
+/**
+ * Tableau de bord employé (US12) :
+ * - valider ou refuser les avis des passagers avant leur publication ;
+ * - traiter les covoiturages qui se sont mal passés : l'employé voit le
+ *   numéro du trajet, le passager et le chauffeur (nom + email), les lieux
+ *   et dates, puis décide de payer le chauffeur ou de rembourser le passager.
+ */
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import type { PublicEmployee, Rating } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { apiRequest } from "@/lib/queryClient";
-import { 
-  Shield, 
-  LogOut, 
-  AlertTriangle, 
-  MessageSquare, 
-  Star, 
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye
-} from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { employeeRequest, queryClient, ApiError, EMPLOYEE_TOKEN_KEY } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Shield, LogOut, Star, AlertTriangle } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
-interface Employee {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  position: string;
-  permissions: string[];
-}
+type PendingRating = Rating & { raterName: string; rateeName: string };
+type TripIssue = {
+  id: number; tripId: number; issueDescription: string; status: string; decision: string | null;
+  resolution: string | null; createdAt: string;
+  trip: { departure: string; destination: string; departureTime: string; arrivalTime: string };
+  passenger: { name: string; email: string };
+  driver: { name: string; email: string };
+};
 
 export default function EmployeeDashboard() {
-  const [employee, setEmployee] = useState<Employee | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [resolutions, setResolutions] = useState<Record<number, string>>({});
 
-  useEffect(() => {
-    const employeeData = localStorage.getItem('employee_data');
-    const employeeToken = localStorage.getItem('employee_token');
-    
-    if (!employeeData || !employeeToken) {
-      setLocation('/employee/login');
-      return;
-    }
-    
-    setEmployee(JSON.parse(employeeData));
-    setToken(employeeToken);
-  }, [navigate]);
-
-  const { data: userReports = [] } = useQuery({
-    queryKey: ['/api/employee/user-reports'],
-    queryFn: () => apiRequest('/api/employee/user-reports', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
-    enabled: !!token && employee?.permissions.includes('user_reports'),
-  });
-
-  const { data: tripIssues = [] } = useQuery({
-    queryKey: ['/api/employee/trip-issues'],
-    queryFn: () => apiRequest('/api/employee/trip-issues', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
-    enabled: !!token && employee?.permissions.includes('trip_issues'),
-  });
-
-  const { data: pendingRatings = [] } = useQuery({
-    queryKey: ['/api/employee/pending-ratings'],
-    queryFn: () => apiRequest('/api/employee/pending-ratings', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
-    enabled: !!token && employee?.permissions.includes('ratings'),
-  });
-
-  const handleLogout = () => {
-    localStorage.removeItem('employee_token');
-    localStorage.removeItem('employee_data');
-    setLocation('/employee/login');
+  const logout = () => {
+    sessionStorage.removeItem(EMPLOYEE_TOKEN_KEY);
+    queryClient.removeQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("/api/employee") });
+    setLocation("/employee/login");
   };
+
+  // Le token est vérifié par le serveur : s'il est absent, expiré ou falsifié → 401 → retour à la connexion
+  const { data: employee, error } = useQuery<PublicEmployee>({
+    queryKey: ["/api/employee/me"],
+    queryFn: () => employeeRequest("GET", "/api/employee/me"),
+  });
+  useEffect(() => {
+    if (error instanceof ApiError && error.status === 401) logout();
+  }, [error]);
+
+  const can = (permission: string) => employee?.permissions.includes(permission) ?? false;
+
+  const { data: ratings = [] } = useQuery<PendingRating[]>({
+    queryKey: ["/api/employee/pending-ratings"],
+    queryFn: () => employeeRequest("GET", "/api/employee/pending-ratings"),
+    enabled: can("ratings"),
+  });
+  const { data: issues = [] } = useQuery<TripIssue[]>({
+    queryKey: ["/api/employee/trip-issues"],
+    queryFn: () => employeeRequest("GET", "/api/employee/trip-issues"),
+    enabled: can("trip_issues"),
+  });
+
+  const onError = (err: Error) => toast({ title: "Action impossible", description: err.message, variant: "destructive" });
+
+  const reviewRating = useMutation({
+    mutationFn: ({ id, approve }: { id: number; approve: boolean }) =>
+      employeeRequest("PATCH", `/api/employee/ratings/${id}/${approve ? "approve" : "reject"}`),
+    onSuccess: (_d, { approve }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employee/pending-ratings"] });
+      toast({ title: approve ? "Avis publié" : "Avis refusé" });
+    },
+    onError,
+  });
+
+  const resolveIssue = useMutation({
+    mutationFn: ({ id, decision }: { id: number; decision: "pay_driver" | "refund_passenger" }) =>
+      employeeRequest("PATCH", `/api/employee/trip-issues/${id}/resolve`, { decision, resolution: resolutions[id] ?? "" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employee/trip-issues"] });
+      toast({ title: "Litige traité" });
+    },
+    onError,
+  });
 
   if (!employee) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-eco-green border-t-transparent rounded-full" />
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-eco-green border-t-transparent rounded-full" /></div>;
   }
 
-  const hasPermission = (permission: string) => {
-    return employee.permissions.includes(permission);
-  };
+  const pendingIssues = issues.filter((i) => i.status === "pending");
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="bg-eco-green/10 p-2 rounded-lg">
-                <Shield className="w-6 h-6 text-eco-green" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Espace Employé
-                </h1>
-                <p className="text-sm text-gray-600">
-                  {employee.firstName} {employee.lastName} - {employee.position}
-                </p>
-              </div>
+        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-3">
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6 text-eco-green" aria-hidden="true" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Espace employé</h1>
+              <p className="text-sm text-gray-600">{employee.firstName} {employee.lastName} · {employee.position}</p>
             </div>
-            <Button
-              variant="outline"
-              onClick={handleLogout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Déconnexion
-            </Button>
           </div>
+          <Button variant="outline" onClick={logout}><LogOut className="w-4 h-4 mr-2" aria-hidden="true" /> Déconnexion</Button>
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Permissions Overview */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle>Mes permissions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {employee.permissions.map((permission) => (
-                <Badge key={permission} variant="secondary">
-                  {permission === 'user_reports' && 'Signalements utilisateurs'}
-                  {permission === 'trip_issues' && 'Problèmes de trajets'}
-                  {permission === 'ratings' && 'Modération des évaluations'}
-                  {permission === 'support' && 'Support client'}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Statistics Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {hasPermission('user_reports') && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-red-100 p-3 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{userReports.length}</p>
-                    <p className="text-sm text-gray-600">Signalements en attente</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {hasPermission('trip_issues') && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-orange-100 p-3 rounded-lg">
-                    <MessageSquare className="w-6 h-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{tripIssues.length}</p>
-                    <p className="text-sm text-gray-600">Problèmes de trajets</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {hasPermission('ratings') && (
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="bg-yellow-100 p-3 rounded-lg">
-                    <Star className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{pendingRatings.length}</p>
-                    <p className="text-sm text-gray-600">Évaluations à modérer</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="reports" className="space-y-6">
-          <TabsList className="grid w-full lg:w-auto grid-cols-3">
-            {hasPermission('user_reports') && (
-              <TabsTrigger value="reports">Signalements</TabsTrigger>
-            )}
-            {hasPermission('trip_issues') && (
-              <TabsTrigger value="issues">Problèmes</TabsTrigger>
-            )}
-            {hasPermission('ratings') && (
-              <TabsTrigger value="ratings">Évaluations</TabsTrigger>
-            )}
+      <main className="max-w-6xl mx-auto px-4 py-8">
+        <Tabs defaultValue={can("ratings") ? "ratings" : "issues"} className="space-y-6">
+          <TabsList>
+            {can("ratings") && <TabsTrigger value="ratings">Avis à modérer ({ratings.length})</TabsTrigger>}
+            {can("trip_issues") && <TabsTrigger value="issues">Litiges ({pendingIssues.length})</TabsTrigger>}
           </TabsList>
 
-          {hasPermission('user_reports') && (
-            <TabsContent value="reports">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Signalements utilisateurs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {userReports.length === 0 ? (
-                    <div className="text-center py-8">
-                      <AlertTriangle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Aucun signalement en attente</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {userReports.map((report: any) => (
-                        <div key={report.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium">{report.title}</h4>
-                            <Badge variant="outline">
-                              <Clock className="w-3 h-3 mr-1" />
-                              En attente
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{report.description}</p>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Examiner
-                            </Button>
-                            <Button size="sm" className="bg-eco-green hover:bg-green-600">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Résoudre
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+          <TabsContent value="ratings" className="space-y-4">
+            {ratings.length === 0 && <p className="text-gray-600">Aucun avis en attente.</p>}
+            {ratings.map((r) => (
+              <Card key={r.id}>
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-900">{r.raterName} → {r.rateeName}</p>
+                    <span className="flex items-center gap-1 text-yellow-600" aria-label={`${r.rating} sur 5`}>
+                      <Star className="w-4 h-4 fill-current" aria-hidden="true" /> {r.rating}/5
+                    </span>
+                  </div>
+                  {r.comment && <p className="text-gray-700">« {r.comment} »</p>}
+                  <p className="text-xs text-gray-500">Trajet n°{r.tripId} · {format(new Date(r.createdAt), "dd/MM/yyyy HH:mm")}</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-eco-green hover:bg-green-600" disabled={reviewRating.isPending} onClick={() => reviewRating.mutate({ id: r.id, approve: true })}>Publier</Button>
+                    <Button size="sm" variant="outline" className="text-red-700" disabled={reviewRating.isPending} onClick={() => reviewRating.mutate({ id: r.id, approve: false })}>Refuser</Button>
+                  </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          )}
+            ))}
+          </TabsContent>
 
-          {hasPermission('trip_issues') && (
-            <TabsContent value="issues">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Problèmes de trajets</CardTitle>
+          <TabsContent value="issues" className="space-y-4">
+            {issues.length === 0 && <p className="text-gray-600">Aucun litige signalé.</p>}
+            {issues.map((issue) => (
+              <Card key={issue.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-600" aria-hidden="true" />
+                    Covoiturage n°{issue.tripId} : {issue.trip.departure} → {issue.trip.destination}
+                    <Badge variant="outline">{issue.status === "pending" ? "À traiter" : "Traité"}</Badge>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {tripIssues.length === 0 ? (
-                    <div className="text-center py-8">
-                      <MessageSquare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Aucun problème signalé</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {tripIssues.map((issue: any) => (
-                        <div key={issue.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium">Trajet #{issue.tripId}</h4>
-                            <Badge variant="destructive">
-                              {issue.type}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-3">{issue.description}</p>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="outline">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Détails
-                            </Button>
-                            <Button size="sm" className="bg-eco-green hover:bg-green-600">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Résoudre
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
+                <CardContent className="space-y-3 text-sm text-gray-700">
+                  <p>Départ le {format(new Date(issue.trip.departureTime), "dd MMMM yyyy 'à' HH:mm", { locale: fr })} · arrivée {format(new Date(issue.trip.arrivalTime), "HH:mm")}</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <p><span className="font-medium">Passager :</span> {issue.passenger.name} ({issue.passenger.email})</p>
+                    <p><span className="font-medium">Chauffeur :</span> {issue.driver.name} ({issue.driver.email})</p>
+                  </div>
+                  <p className="bg-orange-50 p-3 rounded">{issue.issueDescription}</p>
 
-          {hasPermission('ratings') && (
-            <TabsContent value="ratings">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Évaluations en attente de modération</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {pendingRatings.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">Aucune évaluation à modérer</p>
+                  {issue.status === "pending" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor={`resolution-${issue.id}`}>Décision motivée</Label>
+                      <Textarea id={`resolution-${issue.id}`} rows={2} value={resolutions[issue.id] ?? ""}
+                        onChange={(e) => setResolutions({ ...resolutions, [issue.id]: e.target.value })} />
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" disabled={resolveIssue.isPending || !(resolutions[issue.id] ?? "").trim()}
+                          onClick={() => resolveIssue.mutate({ id: issue.id, decision: "refund_passenger" })}>Rembourser le passager</Button>
+                        <Button size="sm" variant="outline" disabled={resolveIssue.isPending || !(resolutions[issue.id] ?? "").trim()}
+                          onClick={() => resolveIssue.mutate({ id: issue.id, decision: "pay_driver" })}>Payer le chauffeur</Button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {pendingRatings.map((rating: any) => (
-                        <div key={rating.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-4 h-4 ${
-                                        i < rating.rating
-                                          ? 'text-yellow-400 fill-current'
-                                          : 'text-gray-300'
-                                      }`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-sm text-gray-600">
-                                  {rating.rating}/5
-                                </span>
-                              </div>
-                              <p className="text-sm text-gray-600 mt-1">
-                                Trajet #{rating.tripId}
-                              </p>
-                            </div>
-                            <Badge variant="outline">En attente</Badge>
-                          </div>
-                          {rating.comment && (
-                            <p className="text-sm text-gray-600 mb-3">"{rating.comment}"</p>
-                          )}
-                          <div className="flex gap-2">
-                            <Button size="sm" className="bg-eco-green hover:bg-green-600">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Approuver
-                            </Button>
-                            <Button size="sm" variant="outline">
-                              <XCircle className="w-4 h-4 mr-1" />
-                              Rejeter
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-gray-600">
+                      Décision : {issue.decision === "refund_passenger" ? "passager remboursé" : "chauffeur payé"} · {issue.resolution}
+                    </p>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-          )}
+            ))}
+          </TabsContent>
         </Tabs>
-      </div>
+      </main>
     </div>
   );
 }

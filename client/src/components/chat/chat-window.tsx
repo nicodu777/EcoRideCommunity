@@ -36,7 +36,7 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
   const { data: messages = [], isLoading } = useQuery<ChatMessage[]>({
     queryKey: [`/api/chat/trip/${tripId}`],
     enabled: isOpen && !!tripId,
-    refetchInterval: 1000, // Refresh every 1 second
+    refetchInterval: 3000, // nouvelle lecture toutes les 3 secondes
     refetchOnWindowFocus: true,
     staleTime: 0, // Always consider data stale
   });
@@ -73,12 +73,8 @@ export function ChatWindow({ tripId, userId, isOpen, onClose }: ChatWindowProps)
     setMessage(""); // Clear input immediately
 
     try {
-      await sendMessageMutation.mutateAsync({
-        tripId,
-        senderId: userId,
-        message: messageToSend,
-        messageType: "text",
-      });
+      // L'expéditeur n'est pas envoyé : le serveur le déduit du token
+      await sendMessageMutation.mutateAsync({ tripId, message: messageToSend });
     } catch (error) {
       // Restore message if sending failed
       setMessage(messageToSend);
