@@ -23,11 +23,11 @@ beforeAll(async () => {
 });
 
 describe("A01 - Contrôle d'accès", () => {
-  test("route admin sans token → 401", async () => {
+  test("route admin sans token : 401", async () => {
     await request(app).get("/api/admin/users").expect(401);
   });
 
-  test("route admin avec le token d'une passagère → 403", async () => {
+  test("route admin avec le token d'une passagère : 403", async () => {
     await request(app).get("/api/admin/users").set(bearer(SEED.sophie.token)).expect(403);
   });
 
@@ -35,7 +35,7 @@ describe("A01 - Contrôle d'accès", () => {
     await request(app).post("/api/admin/employees").set("x-user-id", "1").send({}).expect(401);
   });
 
-  test("route admin avec le token de l'administrateur → 200, sans l'UID Firebase des comptes", async () => {
+  test("route admin avec le token de l'administrateur : 200, sans l'UID Firebase des comptes", async () => {
     const res = await request(app).get("/api/admin/users").set(bearer(SEED.admin.token)).expect(200);
     expect(res.body.length).toBeGreaterThan(0);
     expect(res.body[0]).not.toHaveProperty("firebaseUid");
@@ -85,12 +85,12 @@ describe("A07 - Authentification des employés", () => {
     await request(app).get("/api/employee/pending-ratings").set(bearer(forged)).expect(401);
   });
 
-  test("mauvais mot de passe → 401 avec un message générique", async () => {
+  test("mauvais mot de passe : 401 avec un message générique", async () => {
     const res = await request(app).post("/api/employee/login").send({ email: SEED.employee.email, password: "faux" }).expect(401);
     expect(res.body.message).toBe("Identifiants invalides");
   });
 
-  test("bon mot de passe → JWT valide, accès à la modération, hash jamais renvoyé", async () => {
+  test("bon mot de passe : JWT valide, accès à la modération, hash jamais renvoyé", async () => {
     const login = await request(app).post("/api/employee/login").send(SEED.employee).expect(200);
     expect(login.body.employee).not.toHaveProperty("password");
     expect(jwt.verify(login.body.token, TEST_JWT_SECRET)).toBeTruthy();
@@ -100,11 +100,11 @@ describe("A07 - Authentification des employés", () => {
 });
 
 describe("Validation des entrées", () => {
-  test("JSON mal formé → 400", async () => {
+  test("JSON mal formé : 400", async () => {
     await request(app).post("/api/trips/search").set("Content-Type", "application/json").send("{pas du json").expect(400);
   });
 
-  test("route API inconnue → 404 JSON", async () => {
+  test("route API inconnue : 404 JSON", async () => {
     const res = await request(app).get("/api/n-existe-pas").expect(404);
     expect(res.body.message).toBeDefined();
   });
@@ -114,7 +114,7 @@ describe("Validation des entrées", () => {
     expect(res.body.trips.length).toBe(2);
   });
 
-  test("chiffres de l'accueil calculés sur la base : CO₂ du trajet validé Lille → Paris (2 h 30) = 24 kg", async () => {
+  test("chiffres de l'accueil calculés sur la base : CO₂ du trajet validé Lille-Paris (2 h 30) = 24 kg", async () => {
     const res = await request(app).get("/api/stats").expect(200);
     expect(res.body.co2SavedKg).toBe(24);            // 2,5 h × 80 km/h × 0,12 kg/km × 1 place
     expect(res.body.upcomingTrips).toBeGreaterThan(0);

@@ -1,9 +1,9 @@
 /**
  * Erreur métier « attendue » : elle porte le code HTTP à renvoyer.
  *
- * Les services lèvent des AppError (ex. « crédits insuffisants » → 400) ;
+ * Les services lèvent des AppError (ex. « crédits insuffisants » -> 400) ;
  * le middleware errorHandler les transforme en réponse JSON propre.
- * Toute autre erreur est considérée comme imprévue → 500, sans détail
+ * Toute autre erreur est considérée comme imprévue -> 500, sans détail
  * technique renvoyé au client (on ne divulgue pas la pile d'appels).
  */
 export class AppError extends Error {

@@ -4,7 +4,7 @@
  * ====================================================================
  *
  * C'est ici, et seulement ici, qu'on assemble l'application :
- *   base de données → repositories → services → middlewares
+ *   base de données -> repositories -> services -> middlewares
  *
  * Chaque classe reçoit ce dont elle a besoin dans son constructeur au lieu
  * de le créer elle-même. Avantage : dans les tests, on construit le même

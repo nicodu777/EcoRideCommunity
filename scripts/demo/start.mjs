@@ -87,7 +87,7 @@ async function waitFor(url, timeoutMs) {
 
 // ---------------------------------------------------------------- vérifications
 console.log("==============================================");
-console.log(REAL ? "  EcoRide — mode réel (vrai Firebase, base locale)" : "  EcoRide — mode démo local");
+console.log(REAL ? "  EcoRide, mode réel (vrai Firebase, base locale)" : "  EcoRide, mode démo local");
 console.log("==============================================");
 
 const firebaseEnv = REAL ? readFirebaseEnv() : null;
@@ -186,16 +186,16 @@ if (!(await waitFor(`${APP_URL}/api/health`, 90_000))) {
 }
 
 const accounts = REAL ? `  Connexion avec les VRAIS comptes Firebase du projet ${firebaseEnv.FIREBASE_PROJECT_ID} :
-    Administrateur : admin@ecoride.com (votre mot de passe Firebase) → /login
+    Administrateur : admin@ecoride.com (votre mot de passe Firebase) : /login
     Nouveaux comptes : /register (20 crédits offerts)
-  Employé (page séparée) : employe@ecoride.com / Employe2026!  → /employee/login
+  Employé (page séparée) : employe@ecoride.com / Employe2026!  : /employee/login
   Les trajets de démonstration (Marie, Pierre...) sont visibles et réservables.` : `  Comptes de démonstration (mot de passe : ${DEMO_PASSWORD})
-    Administrateur : admin@ecoride.com          → /login puis menu « Administration »
-    Chauffeur      : marie.dupont@email.com     → /login
-    Chauffeur+pass.: pierre.martin@email.com    → /login
-    Passagère      : sophie.bernard@email.com   → /login (20 crédits)
-    Passager       : lucas.petit@email.com      → /login (12 crédits)
-  Employé (page séparée) : employe@ecoride.com / Employe2026!  → /employee/login`;
+    Administrateur : admin@ecoride.com          : /login puis menu « Administration »
+    Chauffeur      : marie.dupont@email.com     : /login
+    Chauffeur+pass.: pierre.martin@email.com    : /login
+    Passagère      : sophie.bernard@email.com   : /login (20 crédits)
+    Passager       : lucas.petit@email.com      : /login (12 crédits)
+  Employé (page séparée) : employe@ecoride.com / Employe2026!  : /employee/login`;
 
 console.log(`
 ==============================================

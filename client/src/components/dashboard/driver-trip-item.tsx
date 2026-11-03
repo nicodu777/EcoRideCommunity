@@ -1,6 +1,6 @@
 /**
  * Un trajet proposé par le chauffeur (US10, US11) :
- * démarrer → arrivée à destination, ou annuler avant le départ.
+ * démarrer -> arrivée à destination, ou annuler avant le départ.
  */
 import { useState } from "react";
 import type { TripWithDriver } from "@shared/schema";

@@ -4,7 +4,7 @@
  * ====================================================================
  * Chaque test indique les données en entrée et le résultat attendu.
  * Base : sql/seed.sql (Sophie 20 crédits, Lucas 12 crédits,
- * trajet n°2 Paris → Lyon de Pierre à 18 crédits, 3 places).
+ * trajet n°2 Paris -> Lyon de Pierre à 18 crédits, 3 places).
  * ====================================================================
  */
 import { describe, test, expect, beforeEach } from "vitest";
@@ -35,7 +35,7 @@ beforeEach(async () => {
 });
 
 describe("US6 - Participer à un covoiturage", () => {
-  test("cas nominal : Sophie (20 cr.) réserve 1 place à 18 cr. → 2 crédits restants, 1 place en moins", async () => {
+  test("cas nominal : Sophie (20 cr.) réserve 1 place à 18 cr. : 2 crédits restants, 1 place en moins", async () => {
     const booking = await container.services.bookings.reserve(SEED.sophie.id, { tripId: SEED.trips.parisLyonPierre, seatsBooked: 1 });
 
     expect(booking.status).toBe("confirmed");
@@ -44,7 +44,7 @@ describe("US6 - Participer à un covoiturage", () => {
     expect(await seats(SEED.trips.parisLyonPierre)).toBe(2);
   });
 
-  test("crédits insuffisants : Lucas (12 cr.) ne peut pas payer 18 cr. → refus, rien n'est modifié", async () => {
+  test("crédits insuffisants : Lucas (12 cr.) ne peut pas payer 18 cr. : refus, rien n'est modifié", async () => {
     await expect(
       container.services.bookings.reserve(SEED.lucas.id, { tripId: SEED.trips.parisLyonPierre, seatsBooked: 1 }),
     ).rejects.toThrow(/Crédits insuffisants/);
@@ -53,7 +53,7 @@ describe("US6 - Participer à un covoiturage", () => {
     expect(await seats(SEED.trips.parisLyonPierre)).toBe(3);
   });
 
-  test("plus de places : 4 places demandées sur 3 disponibles → refus", async () => {
+  test("plus de places : 4 places demandées sur 3 disponibles : refus", async () => {
     await expect(
       container.services.bookings.reserve(SEED.marie.id, { tripId: SEED.trips.parisLyonPierre, seatsBooked: 4 }),
     ).rejects.toThrow(/places/);
@@ -65,7 +65,7 @@ describe("US6 - Participer à un covoiturage", () => {
     ).rejects.toThrow(/propre trajet/);
   });
 
-  test("double réservation du même trajet → refus", async () => {
+  test("double réservation du même trajet : refus", async () => {
     await container.services.bookings.reserve(SEED.marie.id, { tripId: SEED.trips.parisLyonPierre, seatsBooked: 1 });
     await expect(
       container.services.bookings.reserve(SEED.marie.id, { tripId: SEED.trips.parisLyonPierre, seatsBooked: 1 }),
@@ -173,12 +173,12 @@ describe("US3/US4 - Recherche et filtres", () => {
     expect(result.trips[0].isEcological).toBe(true);
   });
 
-  test("filtre prix maximum : 20 crédits → seul le trajet à 18 crédits", async () => {
+  test("filtre prix maximum : 20 crédits : seul le trajet à 18 crédits", async () => {
     const result = await container.services.trips.search({ departure: "Paris", destination: "Lyon", maxPrice: 20 });
     expect(result.trips.map((t) => Number(t.pricePerSeat))).toEqual([18]);
   });
 
-  test("aucun trajet à la date demandée → la date du trajet le plus proche est proposée", async () => {
+  test("aucun trajet à la date demandée : la date du trajet le plus proche est proposée", async () => {
     const today = new Date().toISOString().slice(0, 10);
     const result = await container.services.trips.search({ departure: "Paris", destination: "Lyon", date: today });
     expect(result.trips).toHaveLength(0);
