@@ -192,7 +192,7 @@ export default function Dashboard() {
 
             {profile.role !== "admin" && (
               <Card>
-                <CardHeader><CardTitle>Je souhaite être…</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Je souhaite être...</CardTitle></CardHeader>
                 <CardContent>
                   <RadioGroup value={profile.role} onValueChange={(role) => changeRole(role as RegisterUser["role"])} className="space-y-2">
                     {(["passenger", "driver", "both"] as const).map((role) => (

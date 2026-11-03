@@ -2,9 +2,9 @@
  * Une réservation dans l'historique du passager (US10, US11).
  *
  * Actions possibles selon le statut :
- * - confirmée          → annuler (crédits rendus) ;
- * - à valider          → « tout s'est bien passé » ou « signaler un problème » ;
- * - validée/remboursée → laisser un avis sur le chauffeur.
+ * - confirmée          -> annuler (crédits rendus) ;
+ * - à valider          -> « tout s'est bien passé » ou « signaler un problème » ;
+ * - validée/remboursée -> laisser un avis sur le chauffeur.
  */
 import { useState } from "react";
 import type { BookingWithTrip } from "@shared/schema";

@@ -46,7 +46,7 @@ export default function EmployeeDashboard() {
     setLocation("/employee/login");
   };
 
-  // Le token est vérifié par le serveur : s'il est absent, expiré ou falsifié → 401 → retour à la connexion
+  // Le token est vérifié par le serveur : s'il est absent, expiré ou falsifié -> 401 -> retour à la connexion
   const { data: employee, error } = useQuery<PublicEmployee>({
     queryKey: ["/api/employee/me"],
     queryFn: () => employeeRequest("GET", "/api/employee/me"),

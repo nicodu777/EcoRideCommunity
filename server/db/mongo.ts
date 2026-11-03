@@ -21,7 +21,7 @@ export async function connectMongo(): Promise<{ db: Db; close: () => Promise<voi
   }
   const client = new MongoClient(env.mongoUrl, { serverSelectionTimeoutMS: 5000 });
   await client.connect();
-  const db = client.db(); // nom de base pris dans l'URL (…/ecoride)
+  const db = client.db(); // nom de base pris dans l'URL (.../ecoride)
   // Un seul document de préférences par chauffeur
   await db.collection("driver_preferences").createIndex({ userId: 1 }, { unique: true });
   await db.collection("admin_logs").createIndex({ createdAt: -1 });

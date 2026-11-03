@@ -7,7 +7,7 @@
  * - US6  : on ne peut réserver que s'il reste des places et si l'on a
  *          assez de crédits ; les crédits sont débités à la réservation ;
  * - US10 : le passager peut annuler (crédits rendus, place libérée) ;
- * - US11 : après l'arrivée, le passager valide le trajet → le chauffeur
+ * - US11 : après l'arrivée, le passager valide le trajet -> le chauffeur
  *          reçoit le prix payé moins 2 crédits gardés par la plateforme ;
  *          s'il signale un problème, un employé tranche (litige).
  *
@@ -118,7 +118,7 @@ export class BookingService {
     });
   }
 
-  /** US11 : le passager signale un problème → litige traité par un employé (US12). */
+  /** US11 : le passager signale un problème -> litige traité par un employé (US12). */
   async report(passengerId: number, bookingId: number, description: string): Promise<TripIssue> {
     return this.transaction(async (tx) => {
       const booking = await this.getOwnBooking(tx, passengerId, bookingId, "awaiting_validation");

@@ -3,8 +3,8 @@
  * Middlewares d'authentification et d'autorisation
  * ====================================================================
  *
- * Authentification = « qui es-tu ? » → on vérifie le token.
- * Autorisation     = « as-tu le droit ? » → on vérifie le rôle / la permission.
+ * Authentification = « qui es-tu ? » -> on vérifie le token.
+ * Autorisation     = « as-tu le droit ? » -> on vérifie le rôle / la permission.
  *
  * Règle d'or : l'identité de l'utilisateur vient UNIQUEMENT du token vérifié
  * (req.user), jamais d'un champ envoyé par le client (driverId, x-user-id...).

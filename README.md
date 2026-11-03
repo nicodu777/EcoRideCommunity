@@ -38,7 +38,7 @@ EcoRide met en relation chauffeurs et passagers pour des trajets en voiture, et 
 | US8 | Rôle passager / chauffeur / les deux, véhicules, préférences (MongoDB) | `pages/dashboard.tsx` |
 | US9 | Publier un trajet avec un de ses véhicules, **2 crédits** pour la plateforme | `TripService.create` |
 | US10 | Historique, annulation passager ou chauffeur (remboursement + notification) | `BookingService.cancel`, `TripService.cancel` |
-| US11 | Démarrer / arrivée, validation par le passager → paiement du chauffeur | `TripService.complete`, `BookingService.validate` |
+| US11 | Démarrer / arrivée, validation par le passager, puis paiement du chauffeur | `TripService.complete`, `BookingService.validate` |
 | US12 | Espace employé : modération des avis, traitement des litiges | `pages/employee/dashboard.tsx` |
 | US13 | Espace admin : création d'employés, graphiques, suspension, total des crédits | `pages/admin-dashboard.tsx` |
 
@@ -133,8 +133,8 @@ PostgreSQL est créé automatiquement avec `sql/schema.sql` puis `sql/seed.sql`,
 L'application est décrite dans `render.yaml` (Blueprint Render) et construite avec le `Dockerfile`.
 
 1. **Base PostgreSQL (Neon)** : créer un projet, puis exécuter `sql/schema.sql` puis `sql/seed.sql` dans l'éditeur SQL. Copier la chaîne de connexion (`postgresql://...?sslmode=require`).
-2. **Firebase** : *Authentication → Settings → Authorized domains* : ajouter le domaine `xxx.onrender.com`.
-3. **Render** : *New → Blueprint*, choisir ce dépôt, puis renseigner `DATABASE_URL`, `FIREBASE_PROJECT_ID` et les trois `VITE_FIREBASE_*`. `JWT_SECRET` est généré par Render.
+2. **Firebase** : *Authentication > Settings > Authorized domains* : ajouter le domaine `xxx.onrender.com`.
+3. **Render** : *New > Blueprint*, choisir ce dépôt, puis renseigner `DATABASE_URL`, `FIREBASE_PROJECT_ID` et les trois `VITE_FIREBASE_*`. `JWT_SECRET` est généré par Render.
 
 Chaque fusion dans `main` est redéployée automatiquement, une fois la CI au vert. Sur l'offre gratuite, le service se met en veille après 15 minutes sans visite : la première requête prend alors environ une minute.
 
@@ -167,7 +167,7 @@ L'intégration continue (GitHub Actions, `.github/workflows/ci.yml`) relance la 
 | A01 Contrôle d'accès | Identité lue dans le token vérifié (`req.user`), jamais dans le corps ; middlewares `requireAuth`, `requireRole("admin")`, `requireEmployee(permission)` ; chaque service vérifie que la ressource appartient à l'utilisateur |
 | A02 Données sensibles | Mots de passe employés hachés avec bcrypt (coût 12) ; UID Firebase et hash jamais renvoyés ; secrets dans `.env` |
 | A03 Injection | Requêtes paramétrées Drizzle ; validation Zod de toutes les entrées ; React échappe l'affichage (anti-XSS) |
-| A04 Conception | Prix recalculé côté serveur ; transactions avec `SELECT … FOR UPDATE` (pas de survente) ; contraintes `CHECK` en base (crédits ≥ 0, places ≥ 0) |
+| A04 Conception | Prix recalculé côté serveur ; transactions avec `SELECT ... FOR UPDATE` (pas de survente) ; contraintes `CHECK` en base (crédits ≥ 0, places ≥ 0) |
 | A05 Configuration | En-têtes `helmet` (CSP en production), `x-powered-by` désactivé, conteneur non root |
 | A07 Authentification | Token Firebase vérifié (signature, expiration, révocation) ; JWT employé signé HS256, 2 h ; limitation à 10 tentatives de connexion / 15 min |
 

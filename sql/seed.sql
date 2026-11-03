@@ -7,7 +7,7 @@
 -- Comptes :
 --  - admin@ecoride.com : se connecte via Firebase. Remplacez le
 --    firebase_uid ci-dessous par l'UID réel du compte (console Firebase
---    → Authentication) : c'est ainsi que le compte admin est créé
+--    -> Authentication) : c'est ainsi que le compte admin est créé
 --    « manuellement », sans passer par l'inscription publique.
 --  - employe@ecoride.com / Employe2026! : espace employé (/employee/login).
 --    Seul le hash bcrypt du mot de passe est stocké.

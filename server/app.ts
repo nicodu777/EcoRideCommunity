@@ -19,7 +19,7 @@ export function createApp(container: Container, options: { production: boolean }
   /**
    * En-têtes de sécurité HTTP (helmet) :
    * - Content-Security-Policy : le navigateur n'exécute que les scripts de
-   *   notre domaine et de Google (Firebase) → limite l'impact d'une faille XSS ;
+   *   notre domaine et de Google (Firebase) -> limite l'impact d'une faille XSS ;
    * - X-Content-Type-Options, X-Frame-Options (anti clickjacking), HSTS...
    * En développement, Vite injecte des scripts inline : la CSP est désactivée.
    */

@@ -22,7 +22,7 @@ export function createApiRouter(container: Container): Router {
   api.use(createEmployeeRoutes(container));
   api.use(createAdminRoutes(container));
   api.use(createChatRoutes(container));
-  // Toute autre URL /api/... → 404 en JSON (et pas la page HTML du front)
+  // Toute autre URL /api/... -> 404 en JSON (et pas la page HTML du front)
   api.use((_req, res) => res.status(404).json({ message: "Route API inconnue" }));
   return api;
 }

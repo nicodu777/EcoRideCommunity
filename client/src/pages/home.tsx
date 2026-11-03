@@ -26,7 +26,7 @@ const VALUES = [
 
 type Role = "passenger" | "driver";
 
-/** 1530 kg → « 1,5 t », 240 kg → « 240 kg » */
+/** 1530 kg -> « 1,5 t », 240 kg -> « 240 kg » */
 function formatCo2(kg: number): string {
   return kg >= 1000 ? `${(kg / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} t` : `${kg} kg`;
 }
