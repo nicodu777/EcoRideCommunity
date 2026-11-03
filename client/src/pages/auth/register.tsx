@@ -171,7 +171,7 @@ export default function Register() {
                 Je souhaite principalement
               </Label>
               <Select value={role} onValueChange={setRole}>
-                <SelectTrigger className="focus:ring-2 focus:ring-eco-green focus:border-eco-green">
+                <SelectTrigger id="role" className="focus:ring-2 focus:ring-eco-green focus:border-eco-green">
                   <SelectValue placeholder="Choisir votre rôle principal" />
                 </SelectTrigger>
                 <SelectContent>

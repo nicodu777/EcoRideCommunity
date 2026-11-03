@@ -39,8 +39,11 @@ export function createApp(container: Container, options: { production: boolean }
 
   app.use(express.json({ limit: "100kb" })); // un corps de requête énorme est refusé
 
-  // Limite globale anti-abus sur l'API : 300 requêtes / 15 min / IP
-  app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: "draft-7", legacyHeaders: false }));
+  // Limite globale anti-abus sur l'API : 1000 requêtes / 15 min / IP.
+  // Assez haut pour une utilisation normale (messagerie lue toutes les 3 s,
+  // plusieurs personnes derrière la même box) ; la connexion employé a sa
+  // propre limite, beaucoup plus stricte (10 tentatives / 15 min).
+  app.use("/api", rateLimit({ windowMs: 15 * 60 * 1000, limit: 1000, standardHeaders: "draft-7", legacyHeaders: false }));
 
   app.use("/api", createApiRouter(container));
   app.use(errorHandler);
